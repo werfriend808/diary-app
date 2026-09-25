@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 import { addMonths, longDate } from '../dates';
-import { colors, paper, serif } from '../theme';
+import { makeStyles, serif, useTheme } from '../theme';
 
 const OPTIONS = [
   { months: 1, label: '1 month' },
@@ -31,6 +31,8 @@ export default function LetterComposerScreen({
   onSeal: (body: string, opensOn: string) => void;
   onClose: () => void;
 }) {
+  const { paper } = useTheme();
+  const styles = useStyles();
   const [body, setBody] = useState('');
   const [months, setMonths] = useState(12);
   const opensOn = addMonths(today, months);
@@ -56,14 +58,10 @@ export default function LetterComposerScreen({
       Alert.alert('Your letter is empty', 'Write a few words to your future self first.');
       return;
     }
-    Alert.alert(
-      'Seal this letter?',
-      `You won’t be able to read or change it until ${longDate(opensOn)}.`,
-      [
-        { text: 'Not yet', style: 'cancel' },
-        { text: 'Seal it', onPress: () => onSeal(body, opensOn) },
-      ],
-    );
+    Alert.alert('Seal this letter?', `You won’t be able to read or change it until ${longDate(opensOn)}.`, [
+      { text: 'Not yet', style: 'cancel' },
+      { text: 'Seal it', onPress: () => onSeal(body, opensOn) },
+    ]);
   };
 
   return (
@@ -84,7 +82,11 @@ export default function LetterComposerScreen({
           {OPTIONS.map((o) => {
             const active = o.months === months;
             return (
-              <Pressable key={o.months} onPress={() => setMonths(o.months)} style={[styles.chip, active && styles.chipActive]}>
+              <Pressable
+                key={o.months}
+                onPress={() => setMonths(o.months)}
+                style={[styles.chip, active && styles.chipActive]}
+              >
                 <Text style={[styles.chipText, active && styles.chipTextActive]}>{o.label}</Text>
               </Pressable>
             );
@@ -110,35 +112,44 @@ export default function LetterComposerScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.line,
-  },
-  topBtn: { fontSize: 16, color: colors.accent },
-  topTitle: { fontSize: 16, fontWeight: '600', color: colors.ink },
-  content: { padding: 16, paddingBottom: 60 },
-  label: { fontSize: 13, color: colors.muted, marginBottom: 8 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.card },
-  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipText: { fontSize: 14, color: colors.ink },
-  chipTextActive: { color: '#fff', fontWeight: '600' },
-  opensOn: { marginTop: 10, fontSize: 13, color: colors.muted },
-  paper: {
-    marginTop: 20,
-    backgroundColor: paper.bg,
-    borderWidth: 1,
-    borderColor: paper.edge,
-    borderRadius: 6,
-    padding: 18,
-    minHeight: 320,
-  },
-  salutation: { fontFamily: serif, fontStyle: 'italic', fontSize: 18, color: paper.ink, marginBottom: 10 },
-  body: { fontFamily: serif, fontSize: 16, lineHeight: 25, color: paper.ink, minHeight: 240 },
-});
+const useStyles = makeStyles(({ colors, paper }) =>
+  StyleSheet.create({
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.line,
+    },
+    topBtn: { fontSize: 16, color: colors.accent },
+    topTitle: { fontSize: 16, fontWeight: '600', color: colors.ink },
+    content: { padding: 16, paddingBottom: 60 },
+    label: { fontSize: 13, color: colors.muted, marginBottom: 8 },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: colors.line,
+      backgroundColor: colors.card,
+    },
+    chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+    chipText: { fontSize: 14, color: colors.ink },
+    chipTextActive: { color: '#fff', fontWeight: '600' },
+    opensOn: { marginTop: 10, fontSize: 13, color: colors.muted },
+    paper: {
+      marginTop: 20,
+      backgroundColor: paper.bg,
+      borderWidth: 1,
+      borderColor: paper.edge,
+      borderRadius: 6,
+      padding: 18,
+      minHeight: 320,
+    },
+    salutation: { fontFamily: serif, fontStyle: 'italic', fontSize: 18, color: paper.ink, marginBottom: 10 },
+    body: { fontFamily: serif, fontSize: 16, lineHeight: 25, color: paper.ink, minHeight: 240 },
+  }),
+);

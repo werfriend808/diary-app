@@ -22,5 +22,7 @@ export interface Letter {
   opensOn: string;
   /** Set the first time the letter is opened. */
   openedAt?: number;
+  /** Id of the scheduled "your letter is ready" notification. */
+  notificationId?: string;
   createdAt: number;
 }

@@ -1,7 +1,7 @@
 import { ReactElement } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import EntryCard from '../components/EntryCard';
-import { colors } from '../theme';
+import { makeStyles } from '../theme';
 import { Entry } from '../types';
 
 export default function EntryListScreen({
@@ -14,6 +14,7 @@ export default function EntryListScreen({
   /** Shown above the list — the "On this day" memories and letter banner. */
   header?: ReactElement;
 }) {
+  const styles = useStyles();
   return (
     <FlatList
       data={entries}
@@ -32,10 +33,12 @@ export default function EntryListScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  list: { padding: 16, paddingBottom: 110 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
-  emptyEmoji: { fontSize: 56, marginBottom: 12 },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: colors.ink },
-  emptyText: { marginTop: 6, fontSize: 15, color: colors.muted, textAlign: 'center' },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    list: { padding: 16, paddingBottom: 110 },
+    empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+    emptyEmoji: { fontSize: 56, marginBottom: 12 },
+    emptyTitle: { fontSize: 20, fontWeight: '700', color: colors.ink },
+    emptyText: { marginTop: 6, fontSize: 15, color: colors.muted, textAlign: 'center' },
+  }),
+);

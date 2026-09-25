@@ -1,18 +1,24 @@
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { exportBackup, importBackup } from './src/backup';
 import MemoriesSection from './src/components/MemoriesSection';
 import { todayKey } from './src/dates';
+import { RELOCK_AFTER_MS } from './src/lock';
 import { memoriesFor } from './src/memories';
+import { cancelNotification, scheduleLetterNotification } from './src/notifications';
 import CalendarScreen from './src/screens/CalendarScreen';
 import EditorScreen from './src/screens/EditorScreen';
 import EntryListScreen from './src/screens/EntryListScreen';
 import LetterComposerScreen from './src/screens/LetterComposerScreen';
 import LetterReaderScreen from './src/screens/LetterReaderScreen';
 import LettersScreen from './src/screens/LettersScreen';
+import LockScreen from './src/screens/LockScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import { loadSettings, saveSettings, Settings } from './src/settings';
 import { loadEntries, loadLetters, newId, saveEntries, saveLetters } from './src/storage';
-import { colors } from './src/theme';
+import { makeStyles, ThemeProvider, useTheme } from './src/theme';
 import { Entry, Letter } from './src/types';
 
 type Tab = 'list' | 'calendar' | 'letters';
@@ -22,6 +28,7 @@ type Overlay =
   | { kind: 'entry'; entry: Entry; isNew: boolean }
   | { kind: 'compose' }
   | { kind: 'letter'; letter: Letter }
+  | { kind: 'settings' }
   | null;
 
 const TABS: { key: Tab; icon: string; label: string }[] = [
@@ -30,36 +37,95 @@ const TABS: { key: Tab; icon: string; label: string }[] = [
   { key: 'letters', icon: '✉️', label: 'Letters' },
 ];
 
+interface Data {
+  entries: Entry[];
+  letters: Letter[];
+}
+
+/** Loads everything once, then renders the app inside the chosen theme. */
 export default function App() {
-  const [entries, setEntries] = useState<Entry[] | null>(null);
-  const [letters, setLetters] = useState<Letter[]>([]);
+  const [data, setData] = useState<Data | null>(null);
+  const [settings, setSettings] = useState<Settings | null>(null);
+
+  useEffect(() => {
+    Promise.all([loadEntries(), loadLetters(), loadSettings()]).then(([entries, letters, s]) => {
+      setSettings(s);
+      setData({ entries, letters });
+    });
+  }, []);
+
+  const changeSettings = (s: Settings) => {
+    setSettings(s);
+    saveSettings(s);
+  };
+
+  return (
+    <SafeAreaProvider>
+      <ThemeProvider pref={settings?.theme ?? 'system'}>
+        {data && settings ? (
+          <Main initial={data} settings={settings} onChangeSettings={changeSettings} />
+        ) : (
+          <Loading />
+        )}
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
+}
+
+function Loading() {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
+      <ActivityIndicator color={colors.accent} />
+    </View>
+  );
+}
+
+function Main({
+  initial,
+  settings,
+  onChangeSettings,
+}: {
+  initial: Data;
+  settings: Settings;
+  onChangeSettings: (s: Settings) => void;
+}) {
+  const { isDark } = useTheme();
+  const styles = useStyles();
+
+  const [entries, setEntries] = useState(initial.entries);
+  const [letters, setLetters] = useState(initial.letters);
+  const [locked, setLocked] = useState(settings.lock);
   const [tab, setTab] = useState<Tab>('list');
   const [today, setToday] = useState(todayKey());
   const [selectedDay, setSelectedDay] = useState(today);
   const [overlay, setOverlay] = useState<Overlay>(null);
 
+  // When the app comes back: refresh "today" (it may be past midnight), and re-lock if it was away a while.
+  const backgroundedAt = useRef<number | null>(null);
+  const lockOn = useRef(settings.lock);
+  lockOn.current = settings.lock;
   useEffect(() => {
-    Promise.all([loadEntries(), loadLetters()]).then(([e, l]) => {
-      setLetters(l);
-      setEntries(e);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background') {
+        backgroundedAt.current = Date.now();
+      } else if (state === 'active') {
+        setToday(todayKey());
+        const away = backgroundedAt.current ? Date.now() - backgroundedAt.current : 0;
+        backgroundedAt.current = null;
+        if (lockOn.current && away > RELOCK_AFTER_MS) setLocked(true);
+      }
     });
-  }, []);
-
-  // If the app was left open past midnight, refresh "today" when it comes back.
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (s) => s === 'active' && setToday(todayKey()));
     return () => sub.remove();
   }, []);
 
   // Newest day first; within a day, newest written first.
   const sorted = useMemo(
     () =>
-      [...(entries ?? [])].sort((a, b) =>
-        a.date === b.date ? b.createdAt - a.createdAt : a.date < b.date ? 1 : -1,
-      ),
+      [...entries].sort((a, b) => (a.date === b.date ? b.createdAt - a.createdAt : a.date < b.date ? 1 : -1)),
     [entries],
   );
-  const memories = useMemo(() => memoriesFor(entries ?? [], today), [entries, today]);
+  const memories = useMemo(() => memoriesFor(entries, today), [entries, today]);
   const readyLetters = letters.filter((l) => !l.openedAt && l.opensOn <= today).length;
 
   // ---- entries ----
@@ -81,15 +147,14 @@ export default function App() {
   const openEntry = (entry: Entry) => setOverlay({ kind: 'entry', entry, isNew: false });
 
   const saveEntry = (e: Entry) => {
-    const list = entries ?? [];
-    const exists = list.some((x) => x.id === e.id);
-    commitEntries(exists ? list.map((x) => (x.id === e.id ? e : x)) : [e, ...list]);
+    const exists = entries.some((x) => x.id === e.id);
+    commitEntries(exists ? entries.map((x) => (x.id === e.id ? e : x)) : [e, ...entries]);
     setSelectedDay(e.date);
     setOverlay(null);
   };
 
   const deleteEntry = (id: string) => {
-    commitEntries((entries ?? []).filter((x) => x.id !== id));
+    commitEntries(entries.filter((x) => x.id !== id));
     setOverlay(null);
   };
 
@@ -99,13 +164,17 @@ export default function App() {
     saveLetters(next);
   };
 
-  const sealLetter = (body: string, opensOn: string) => {
-    commitLetters([
-      ...letters,
-      { id: newId(), body, writtenOn: today, opensOn, createdAt: Date.now() },
-    ]);
+  const sealLetter = async (body: string, opensOn: string) => {
+    const letter: Letter = { id: newId(), body, writtenOn: today, opensOn, createdAt: Date.now() };
+    const next = [...letters, letter];
+    commitLetters(next);
     setOverlay(null);
     setTab('letters');
+    // Ask for notification permission after sealing, so the prompt makes sense in context.
+    const notificationId = await scheduleLetterNotification(letter);
+    if (notificationId) {
+      commitLetters(next.map((l) => (l.id === letter.id ? { ...l, notificationId } : l)));
+    }
   };
 
   const openLetter = (letter: Letter) => {
@@ -118,7 +187,43 @@ export default function App() {
     setOverlay({ kind: 'letter', letter: shown });
   };
 
-  const deleteLetter = (id: string) => commitLetters(letters.filter((l) => l.id !== id));
+  const deleteLetter = (id: string) => {
+    cancelNotification(letters.find((l) => l.id === id)?.notificationId);
+    commitLetters(letters.filter((l) => l.id !== id));
+  };
+
+  // ---- backup ----
+  const doExport = async () => {
+    try {
+      await exportBackup(entries, letters);
+    } catch (e) {
+      Alert.alert('Couldn’t save the backup', e instanceof Error ? e.message : 'Please try again.');
+    }
+  };
+
+  const doImport = async () => {
+    try {
+      const result = await importBackup({ entries, letters });
+      if (!result) return;
+      commitEntries(result.entries);
+      // Imported sealed letters get their own unlock notifications on this phone.
+      const known = new Set(letters.map((l) => l.id));
+      const withNotifications = await Promise.all(
+        result.letters.map(async (l) =>
+          known.has(l.id) || l.openedAt ? l : { ...l, notificationId: await scheduleLetterNotification(l) },
+        ),
+      );
+      commitLetters(withNotifications);
+      Alert.alert(
+        'Backup restored',
+        result.addedEntries + result.addedLetters === 0
+          ? 'Everything in that backup is already in your diary.'
+          : `Added ${result.addedEntries} ${result.addedEntries === 1 ? 'entry' : 'entries'} and ${result.addedLetters} ${result.addedLetters === 1 ? 'letter' : 'letters'}.`,
+      );
+    } catch (e) {
+      Alert.alert('Couldn’t restore', e instanceof Error ? e.message : 'Please try again.');
+    }
+  };
 
   // ---- render ----
   const renderOverlay = () => {
@@ -139,141 +244,159 @@ export default function App() {
         return <LetterComposerScreen today={today} onSeal={sealLetter} onClose={() => setOverlay(null)} />;
       case 'letter':
         return <LetterReaderScreen letter={overlay.letter} onClose={() => setOverlay(null)} />;
+      case 'settings':
+        return (
+          <SettingsScreen
+            settings={settings}
+            onChange={onChangeSettings}
+            onExport={doExport}
+            onImport={doImport}
+            onClose={() => setOverlay(null)}
+          />
+        );
     }
   };
 
   return (
-    <SafeAreaProvider>
-      <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-        <StatusBar style="dark" />
+    <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
 
-        {entries === null ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={colors.accent} />
-          </View>
-        ) : overlay ? (
-          renderOverlay()
-        ) : (
-          <>
-            <View style={styles.header}>
-              <Text style={styles.appTitle}>{tab === 'letters' ? 'Letters' : 'My Diary'}</Text>
+      {locked ? (
+        <LockScreen onUnlocked={() => setLocked(false)} />
+      ) : overlay ? (
+        renderOverlay()
+      ) : (
+        <>
+          <View style={styles.header}>
+            <Text style={styles.appTitle}>{tab === 'letters' ? 'Letters' : 'My Diary'}</Text>
+            <View style={styles.headerRight}>
               {tab !== 'letters' && (
                 <Text style={styles.count}>
                   {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
                 </Text>
               )}
+              <Pressable
+                onPress={() => setOverlay({ kind: 'settings' })}
+                hitSlop={12}
+                accessibilityLabel="Settings"
+              >
+                <Text style={styles.gear}>⚙︎</Text>
+              </Pressable>
             </View>
+          </View>
 
-            <View style={{ flex: 1 }}>
-              {tab === 'list' && (
-                <EntryListScreen
-                  entries={sorted}
-                  onOpen={openEntry}
-                  header={
-                    <MemoriesSection
-                      memories={memories}
-                      readyLetters={readyLetters}
-                      hasEntries={entries.length > 0}
-                      onOpen={openEntry}
-                      onOpenLetters={() => setTab('letters')}
-                    />
-                  }
-                />
-              )}
-              {tab === 'calendar' && (
-                <CalendarScreen
-                  entries={sorted}
-                  selected={selectedDay}
-                  onSelect={setSelectedDay}
-                  onOpen={openEntry}
-                />
-              )}
-              {tab === 'letters' && (
-                <LettersScreen
-                  letters={letters}
-                  today={today}
-                  onWrite={() => setOverlay({ kind: 'compose' })}
-                  onOpen={openLetter}
-                  onDelete={deleteLetter}
-                />
-              )}
+          <View style={{ flex: 1 }}>
+            {tab === 'list' && (
+              <EntryListScreen
+                entries={sorted}
+                onOpen={openEntry}
+                header={
+                  <MemoriesSection
+                    memories={memories}
+                    readyLetters={readyLetters}
+                    hasEntries={entries.length > 0}
+                    onOpen={openEntry}
+                    onOpenLetters={() => setTab('letters')}
+                  />
+                }
+              />
+            )}
+            {tab === 'calendar' && (
+              <CalendarScreen
+                entries={sorted}
+                selected={selectedDay}
+                onSelect={setSelectedDay}
+                onOpen={openEntry}
+              />
+            )}
+            {tab === 'letters' && (
+              <LettersScreen
+                letters={letters}
+                today={today}
+                onWrite={() => setOverlay({ kind: 'compose' })}
+                onOpen={openLetter}
+                onDelete={deleteLetter}
+              />
+            )}
 
-              {tab !== 'letters' && (
-                <Pressable
-                  onPress={startNewEntry}
-                  style={({ pressed }) => [styles.fab, pressed && { transform: [{ scale: 0.94 }] }]}
-                  accessibilityLabel="New entry"
-                >
-                  <Text style={styles.fabText}>＋</Text>
-                </Pressable>
-              )}
-            </View>
+            {tab !== 'letters' && (
+              <Pressable
+                onPress={startNewEntry}
+                style={({ pressed }) => [styles.fab, pressed && { transform: [{ scale: 0.94 }] }]}
+                accessibilityLabel="New entry"
+              >
+                <Text style={styles.fabText}>＋</Text>
+              </Pressable>
+            )}
+          </View>
 
-            <View style={styles.tabBar}>
-              {TABS.map((t) => (
-                <Pressable key={t.key} style={styles.tab} onPress={() => setTab(t.key)}>
-                  <View>
-                    <Text style={styles.tabIcon}>{t.icon}</Text>
-                    {t.key === 'letters' && readyLetters > 0 && <View style={styles.badge} />}
-                  </View>
-                  <Text style={[styles.tabLabel, tab === t.key && styles.tabActive]}>{t.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-          </>
-        )}
-      </SafeAreaView>
-    </SafeAreaProvider>
+          <View style={styles.tabBar}>
+            {TABS.map((t) => (
+              <Pressable key={t.key} style={styles.tab} onPress={() => setTab(t.key)}>
+                <View>
+                  <Text style={styles.tabIcon}>{t.icon}</Text>
+                  {t.key === 'letters' && readyLetters > 0 && <View style={styles.badge} />}
+                </View>
+                <Text style={[styles.tabLabel, tab === t.key && styles.tabActive]}>{t.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </>
+      )}
+    </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  appTitle: { fontSize: 30, fontWeight: '800', color: colors.ink },
-  count: { fontSize: 14, color: colors.muted },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  fabText: { color: '#fff', fontSize: 30, lineHeight: 34 },
-  tabBar: {
-    flexDirection: 'row',
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.line,
-    backgroundColor: colors.card,
-  },
-  tab: { flex: 1, alignItems: 'center', paddingVertical: 8 },
-  tabIcon: { fontSize: 20 },
-  badge: {
-    position: 'absolute',
-    top: 0,
-    right: -6,
-    width: 9,
-    height: 9,
-    borderRadius: 5,
-    backgroundColor: colors.accent,
-  },
-  tabLabel: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  tabActive: { color: colors.accent, fontWeight: '700' },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    root: { flex: 1, backgroundColor: colors.bg },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 4,
+    },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    appTitle: { fontSize: 30, fontWeight: '800', color: colors.ink },
+    count: { fontSize: 14, color: colors.muted },
+    gear: { fontSize: 24, color: colors.muted },
+    fab: {
+      position: 'absolute',
+      right: 20,
+      bottom: 20,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 6,
+    },
+    fabText: { color: '#fff', fontSize: 30, lineHeight: 34 },
+    tabBar: {
+      flexDirection: 'row',
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.line,
+      backgroundColor: colors.card,
+    },
+    tab: { flex: 1, alignItems: 'center', paddingVertical: 8 },
+    tabIcon: { fontSize: 20 },
+    badge: {
+      position: 'absolute',
+      top: 0,
+      right: -6,
+      width: 9,
+      height: 9,
+      borderRadius: 5,
+      backgroundColor: colors.accent,
+    },
+    tabLabel: { fontSize: 12, color: colors.muted, marginTop: 2 },
+    tabActive: { color: colors.accent, fontWeight: '700' },
+  }),
+);

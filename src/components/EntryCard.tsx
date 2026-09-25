@@ -1,18 +1,16 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { fromKey, MONTHS, shortWeekday } from '../dates';
-import { colors, moodOf } from '../theme';
+import { makeStyles, moodOf } from '../theme';
 import { Entry } from '../types';
 
 export default function EntryCard({ entry, onPress }: { entry: Entry; onPress: () => void }) {
+  const styles = useStyles();
   const mood = moodOf(entry.mood);
   const d = fromKey(entry.date);
   const preview = entry.body.trim().replace(/\s+/g, ' ');
 
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.7 }]}
-    >
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.card, pressed && { opacity: 0.7 }]}>
       <View style={styles.dateCol}>
         <Text style={styles.day}>{d.getDate()}</Text>
         <Text style={styles.weekday}>{shortWeekday(entry.date)}</Text>
@@ -38,26 +36,28 @@ export default function EntryCard({ entry, onPress }: { entry: Entry; onPress: (
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    gap: 14,
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-  },
-  dateCol: { width: 40, alignItems: 'center' },
-  day: { fontSize: 22, fontWeight: '700', color: colors.ink },
-  weekday: { fontSize: 11, color: colors.accent, fontWeight: '600', textTransform: 'uppercase' },
-  month: { fontSize: 11, color: colors.muted },
-  textCol: { flex: 1 },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  mood: { fontSize: 16 },
-  title: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.ink },
-  preview: { marginTop: 4, fontSize: 14, lineHeight: 19, color: colors.muted },
-  thumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: colors.line },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    card: {
+      flexDirection: 'row',
+      backgroundColor: colors.card,
+      borderRadius: 14,
+      padding: 14,
+      marginBottom: 10,
+      gap: 14,
+      alignItems: 'center',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.line,
+    },
+    dateCol: { width: 40, alignItems: 'center' },
+    day: { fontSize: 22, fontWeight: '700', color: colors.ink },
+    weekday: { fontSize: 11, color: colors.accent, fontWeight: '600', textTransform: 'uppercase' },
+    month: { fontSize: 11, color: colors.muted },
+    textCol: { flex: 1 },
+    titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    mood: { fontSize: 16 },
+    title: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.ink },
+    preview: { marginTop: 4, fontSize: 14, lineHeight: 19, color: colors.muted },
+    thumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: colors.line },
+  }),
+);

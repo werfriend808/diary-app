@@ -61,3 +61,11 @@ export function deletePhoto(uri?: string) {
 }
 
 export const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+
+/** Writes a photo restored from a backup into the app's photo folder; returns its new URI. */
+export function savePhotoFromBase64(base64: string, extension: string): string {
+  const ext = extension.startsWith('.') ? extension : `.${extension}`;
+  const dest = new File(photoDir(), `${Date.now()}-${Math.random().toString(36).slice(2, 7)}${ext}`);
+  dest.write(base64, { encoding: 'base64' });
+  return dest.uri;
+}

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { longDate, shiftDay, todayKey } from '../dates';
 import { deletePhoto, persistPhoto } from '../storage';
-import { colors, MOODS } from '../theme';
+import { MOODS, makeStyles, useTheme } from '../theme';
 import { Entry, MoodKey } from '../types';
 
 export default function EditorScreen({
@@ -31,6 +31,8 @@ export default function EditorScreen({
   onDelete: (id: string) => void;
   onClose: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [date, setDate] = useState(original.date);
   const [title, setTitle] = useState(original.title);
   const [body, setBody] = useState(original.body);
@@ -118,10 +120,7 @@ export default function EditorScreen({
   const canGoForward = date < todayKey();
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.topBar}>
         <Pressable onPress={requestClose} hitSlop={10}>
           <Text style={styles.topBtn}>Back</Text>
@@ -155,10 +154,7 @@ export default function EditorScreen({
               <Pressable
                 key={m.key}
                 onPress={() => setMood(active ? undefined : m.key)}
-                style={[
-                  styles.moodBtn,
-                  active && { backgroundColor: m.color + '33', borderColor: m.color },
-                ]}
+                style={[styles.moodBtn, active && { backgroundColor: m.color + '33', borderColor: m.color }]}
               >
                 <Text style={styles.moodEmoji}>{m.emoji}</Text>
                 <Text style={[styles.moodLabel, active && { color: colors.ink, fontWeight: '600' }]}>
@@ -215,64 +211,66 @@ export default function EditorScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.line,
-  },
-  topBtn: { fontSize: 16, color: colors.accent },
-  saveBtn: { fontWeight: '700' },
-  topTitle: { fontSize: 16, fontWeight: '600', color: colors.ink },
-  content: { padding: 16, paddingBottom: 60 },
-  dateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  dateArrow: { fontSize: 28, color: colors.accent, paddingHorizontal: 10 },
-  dateText: { fontSize: 15, fontWeight: '600', color: colors.ink },
-  label: { fontSize: 13, color: colors.muted, marginBottom: 8 },
-  moodRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  moodBtn: {
-    flex: 1,
-    marginHorizontal: 3,
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  moodEmoji: { fontSize: 26 },
-  moodLabel: { fontSize: 11, color: colors.muted, marginTop: 2 },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.ink,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.line,
-    marginBottom: 12,
-  },
-  body: { fontSize: 16, lineHeight: 24, color: colors.ink, minHeight: 180 },
-  addPhoto: {
-    marginTop: 16,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: colors.line,
-    borderRadius: 14,
-    paddingVertical: 22,
-    alignItems: 'center',
-  },
-  addPhotoText: { color: colors.muted, fontSize: 15 },
-  photo: { marginTop: 16, width: '100%', aspectRatio: 4 / 3, borderRadius: 14 },
-  photoActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-  link: { color: colors.accent, fontSize: 14, fontWeight: '600' },
-  deleteBtn: { marginTop: 36, alignItems: 'center', padding: 12 },
-  deleteText: { color: colors.danger, fontSize: 15 },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.line,
+    },
+    topBtn: { fontSize: 16, color: colors.accent },
+    saveBtn: { fontWeight: '700' },
+    topTitle: { fontSize: 16, fontWeight: '600', color: colors.ink },
+    content: { padding: 16, paddingBottom: 60 },
+    dateRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 18,
+    },
+    dateArrow: { fontSize: 28, color: colors.accent, paddingHorizontal: 10 },
+    dateText: { fontSize: 15, fontWeight: '600', color: colors.ink },
+    label: { fontSize: 13, color: colors.muted, marginBottom: 8 },
+    moodRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+    moodBtn: {
+      flex: 1,
+      marginHorizontal: 3,
+      alignItems: 'center',
+      paddingVertical: 8,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: 'transparent',
+    },
+    moodEmoji: { fontSize: 26 },
+    moodLabel: { fontSize: 11, color: colors.muted, marginTop: 2 },
+    title: {
+      fontSize: 22,
+      fontWeight: '700',
+      color: colors.ink,
+      paddingVertical: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.line,
+      marginBottom: 12,
+    },
+    body: { fontSize: 16, lineHeight: 24, color: colors.ink, minHeight: 180 },
+    addPhoto: {
+      marginTop: 16,
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
+      borderColor: colors.line,
+      borderRadius: 14,
+      paddingVertical: 22,
+      alignItems: 'center',
+    },
+    addPhotoText: { color: colors.muted, fontSize: 15 },
+    photo: { marginTop: 16, width: '100%', aspectRatio: 4 / 3, borderRadius: 14 },
+    photoActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
+    link: { color: colors.accent, fontSize: 14, fontWeight: '600' },
+    deleteBtn: { marginTop: 36, alignItems: 'center', padding: 12 },
+    deleteText: { color: colors.danger, fontSize: 15 },
+  }),
+);

@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
     },
@@ -27,7 +27,15 @@
         {
           "photosPermission": "My Diary uses your photos so you can attach them to diary entries."
         }
-      ]
+      ],
+      "expo-sharing",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "My Diary uses Face ID so only you can open your diary."
+        }
+      ],
+      "expo-notifications"
     ]
   }
 }

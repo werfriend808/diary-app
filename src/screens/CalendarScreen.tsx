@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import EntryCard from '../components/EntryCard';
 import { longDate, MONTHS, toKey, todayKey } from '../dates';
-import { colors, moodOf } from '../theme';
+import { makeStyles, moodOf, useTheme } from '../theme';
 import { Entry } from '../types';
 
 const WEEK_HEADER = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -18,6 +18,8 @@ export default function CalendarScreen({
   selected: string;
   onSelect: (dateKey: string) => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useStyles();
   const [month, setMonth] = useState(() => {
     const [y, m] = selected.split('-').map(Number);
     return new Date(y, m - 1, 1);
@@ -39,8 +41,7 @@ export default function CalendarScreen({
     return out;
   }, [month]);
 
-  const shiftMonth = (delta: number) =>
-    setMonth(new Date(month.getFullYear(), month.getMonth() + delta, 1));
+  const shiftMonth = (delta: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + delta, 1));
 
   const today = todayKey();
   const dayEntries = byDay.get(selected) ?? [];
@@ -88,9 +89,7 @@ export default function CalendarScreen({
                     {Number(key.slice(8))}
                   </Text>
                 </View>
-                {list && (
-                  <View style={[styles.dot, { backgroundColor: mood?.color ?? colors.accent }]} />
-                )}
+                {list && <View style={[styles.dot, { backgroundColor: mood?.color ?? colors.accent }]} />}
               </Pressable>
             );
           })}
@@ -107,32 +106,40 @@ export default function CalendarScreen({
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: 16, paddingBottom: 110 },
-  calendar: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 12,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.line,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    marginBottom: 8,
-  },
-  arrow: { fontSize: 30, color: colors.accent, paddingHorizontal: 8 },
-  monthTitle: { fontSize: 17, fontWeight: '700', color: colors.ink },
-  row: { flexDirection: 'row' },
-  weekLabel: { width: `${100 / 7}%`, textAlign: 'center', color: colors.muted, fontSize: 12, marginBottom: 4 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { width: `${100 / 7}%`, height: 46, alignItems: 'center', justifyContent: 'center' },
-  dayCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  daySelected: { backgroundColor: colors.accent },
-  dayNum: { fontSize: 15, color: colors.ink },
-  dot: { width: 6, height: 6, borderRadius: 3, marginTop: 2 },
-  dayTitle: { fontSize: 15, fontWeight: '700', color: colors.ink, marginTop: 20, marginBottom: 10 },
-  none: { color: colors.muted, fontSize: 14 },
-});
+const useStyles = makeStyles(({ colors }) =>
+  StyleSheet.create({
+    container: { padding: 16, paddingBottom: 110 },
+    calendar: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 12,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.line,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 8,
+      marginBottom: 8,
+    },
+    arrow: { fontSize: 30, color: colors.accent, paddingHorizontal: 8 },
+    monthTitle: { fontSize: 17, fontWeight: '700', color: colors.ink },
+    row: { flexDirection: 'row' },
+    weekLabel: {
+      width: `${100 / 7}%`,
+      textAlign: 'center',
+      color: colors.muted,
+      fontSize: 12,
+      marginBottom: 4,
+    },
+    grid: { flexDirection: 'row', flexWrap: 'wrap' },
+    cell: { width: `${100 / 7}%`, height: 46, alignItems: 'center', justifyContent: 'center' },
+    dayCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+    daySelected: { backgroundColor: colors.accent },
+    dayNum: { fontSize: 15, color: colors.ink },
+    dot: { width: 6, height: 6, borderRadius: 3, marginTop: 2 },
+    dayTitle: { fontSize: 15, fontWeight: '700', color: colors.ink, marginTop: 20, marginBottom: 10 },
+    none: { color: colors.muted, fontSize: 14 },
+  }),
+);
