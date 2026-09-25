@@ -78,8 +78,10 @@ npx expo start
 Scan the QR code: with Expo Go on Android, or with the Camera app on iPhone. Your phone and
 computer must be on the same Wi-Fi. If it won't connect, use `npx expo start --tunnel`.
 
-Expo Go limits to know about: on iPhone, Face ID doesn't work inside Expo Go (the app lock
-falls back to your passcode); it works in the real store build.
+Expo Go limits to know about (everything works in the real store build):
+- On iPhone, Face ID doesn't work inside Expo Go, so the app lock falls back to your passcode.
+- On Android, Expo Go doesn't support notifications, so sealed letters don't send a
+  "ready to open" notification. The letter still unlocks in the app.
 
 Type check before committing:
 
