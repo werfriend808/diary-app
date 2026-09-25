@@ -1,67 +1,98 @@
 # My Diary
 
-A simple diary app for phones, built with Expo (React Native).
+**A private diary that gives your memories back to you.**
 
-- Write entries with a title, text, and a date. You can move the date to earlier days.
-- Pick a mood for each entry (😄 🙂 😐 😔 😢).
-- Browse a calendar that shows a colored dot on each day you wrote. Tap a day to see its entries.
-- Attach a photo from your gallery.
-- **On this day:** the top of the Diary tab brings back what you wrote one week ago, the same
-  day in earlier months, and this date in earlier years.
-- **Letters to future you:** write a letter, seal it for 1 month to 3 years, and open it when
-  the day comes. A banner and a dot on the Letters tab tell you when one is ready.
-- Everything is stored privately on your phone, with no account and no internet needed.
+Write about your day, as long or as short as you like. Over time the app starts showing you
+what you wrote a week, a month, or a year ago, and lets you send letters to your future self
+that stay sealed until the day you choose.
 
-## Run it on your phone with Expo Go
+Everything stays on your phone. No account, no ads, no internet needed.
 
-**Expo Go** is a free app from the App Store / Google Play. It runs Expo projects straight
-from your computer while you're developing, so you don't have to build or install anything
-on the phone. Your PC runs a small dev server, your phone scans a QR code, and the app opens
-inside Expo Go. When you save a code change, the app on the phone reloads by itself.
+<p>
+  <img src="docs/screenshots/diary.png" width="200" alt="Diary tab with On this day memories" />
+  <img src="docs/screenshots/letters.png" width="200" alt="Letters tab" />
+  <img src="docs/screenshots/letter.png" width="200" alt="An opened letter" />
+  <img src="docs/screenshots/compose.png" width="200" alt="Writing a letter to future you" />
+</p>
 
-1. **On your phone:** install **Expo Go** from the App Store or Google Play.
-2. **On your PC:** install [Node.js](https://nodejs.org) (the LTS version) if you don't have it.
-3. Open a terminal in this folder and run:
+<sub>Screenshots use sample entries.</sub>
 
-   ```bash
-   npm install
-   npx expo start
-   ```
+## Features
 
-4. A QR code appears in the terminal.
-   - **Android:** open Expo Go and tap *Scan QR code*.
-   - **iPhone:** open the normal Camera app and point it at the QR code.
-5. Your phone and PC must be on the **same Wi-Fi**. If it can't connect (office or school
-   networks often block this), run `npx expo start --tunnel` instead.
+### Write
+- Diary entries with a title, text, date, and an optional photo
+- A mood for each day (😄 🙂 😐 😔 😢)
+- A calendar with a mood-colored dot on each day you wrote
 
-> If Expo Go says the project needs a newer SDK, update Expo Go from the store. This project
-> uses Expo SDK 57.
+### Look back
+- **On this day:** the top of the Diary tab brings back entries from one week ago, the same
+  day in earlier months, and this date in earlier years. They appear as paper-style cards you
+  swipe through.
+- **Letters to future you:** write a letter and seal it for 1 month, 3 months, 6 months,
+  1 year, or 3 years. You can't read it until then. When it's ready, a banner and a dot on
+  the Letters tab let you know.
+
+## Tech
+
+- [Expo](https://expo.dev) SDK 57 / React Native, TypeScript
+- Entries and letters are stored on the device with AsyncStorage; photos are copied into the
+  app's private documents folder (`expo-file-system`)
+- No backend, no analytics, no network calls
+
+## Run it
+
+You need [Node.js](https://nodejs.org) (LTS) on your computer and the free **Expo Go** app
+on your phone (App Store / Google Play).
+
+```bash
+npm install
+npx expo start
+```
+
+Scan the QR code: with Expo Go on Android, or with the Camera app on iPhone. Your phone and
+computer must be on the same Wi-Fi. If it won't connect, use `npx expo start --tunnel`.
+
+Type check:
+
+```bash
+npx tsc --noEmit
+```
 
 ## Project layout
 
 ```
-App.tsx                      App shell: tabs, + button, which screen is showing
+App.tsx                           Tabs, the + button, and which screen is showing
 src/
-  screens/EntryListScreen    List of all entries, newest first
-  screens/CalendarScreen     Month grid with mood dots + that day's entries
-  screens/EditorScreen       Write / edit / delete an entry, mood, photo
-  screens/LettersScreen      Ready / sealed / opened letters
-  screens/LetterComposerScreen  Write and seal a letter to future you
-  screens/LetterReaderScreen    Read an opened letter
-  components/MemoriesSection "On this day" cards + ready-letter banner
-  memories.ts                Decides which old entries to resurface today
-  components/EntryCard       One entry row (date, mood, title, preview, thumbnail)
-  storage.ts                 Saves entries (AsyncStorage) and photos (app documents folder)
-  theme.ts                   Colors and the list of moods
-  dates.ts                   Date helpers
+  screens/
+    EntryListScreen.tsx           Diary tab: memories on top, then all entries
+    CalendarScreen.tsx            Month grid with mood dots and that day's entries
+    EditorScreen.tsx              Write, edit, or delete an entry
+    LettersScreen.tsx             Ready, sealed, and opened letters
+    LetterComposerScreen.tsx      Write and seal a letter
+    LetterReaderScreen.tsx        Read an opened letter
+  components/
+    MemoriesSection.tsx           "On this day" cards and the ready-letter banner
+    EntryCard.tsx                 One entry row in a list
+  memories.ts                     Picks which old entries to bring back today
+  storage.ts                      Saving entries, letters, and photos
+  dates.ts                        Date helpers
+  theme.ts                        Colors, fonts, and moods
+  types.ts                        Entry and Letter types
 ```
 
-## Ideas for next steps
+## Roadmap
 
-- Search entries
-- Notification on the day a letter unlocks, and a gentle "a year ago today" reminder
-- Monthly and yearly recaps
-- Lock the diary with Face ID / fingerprint (`expo-local-authentication`)
-- Daily reminder notification (`expo-notifications`)
-- Dark mode
-- Export / back up entries
+Before launch
+- [ ] Final app name, icon, and splash screen
+- [ ] Backup and export, so a lost phone doesn't mean a lost diary
+- [ ] App lock with Face ID or fingerprint
+- [ ] Notification when a letter unlocks
+- [ ] Dark mode
+- [ ] Privacy policy page
+- [ ] App Store and Google Play release (EAS Build)
+
+Later
+- [ ] Monthly and yearly recaps
+- [ ] "Same day across the years" view
+- [ ] Search
+- [ ] Optional cloud sync
