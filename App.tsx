@@ -2,7 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { exportBackup, importBackup } from './src/backup';
+import { exportBackup, importBackup, removeOldBackupFiles } from './src/backup';
 import MemoriesSection from './src/components/MemoriesSection';
 import { todayKey } from './src/dates';
 import { RELOCK_AFTER_MS } from './src/lock';
@@ -60,7 +60,10 @@ export default function App() {
     );
   };
 
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+    removeOldBackupFiles();
+  }, []);
 
   const changeSettings = (s: Settings) => {
     setSettings(s);
@@ -142,11 +145,16 @@ function Main({
   const backgroundedAt = useRef<number | null>(null);
   const lockOn = useRef(settings.lock);
   lockOn.current = settings.lock;
+  // With the lock on, cover the diary as soon as the app leaves the foreground, so the app switcher's
+  // snapshot doesn't show it. (iOS takes the snapshot on 'inactive'; on Android this is best effort.)
+  const [covered, setCovered] = useState(false);
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' && lockOn.current) setCovered(true);
       if (state === 'background') {
         backgroundedAt.current = Date.now();
       } else if (state === 'active') {
+        setCovered(false);
         setToday(todayKey());
         const away = backgroundedAt.current ? Date.now() - backgroundedAt.current : 0;
         backgroundedAt.current = null;
@@ -159,6 +167,14 @@ function Main({
     });
     return () => sub.remove();
   }, []);
+
+  // Also roll "today" over at midnight if the app is left open.
+  useEffect(() => {
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const timer = setTimeout(() => setToday(todayKey()), midnight.getTime() - now.getTime() + 1000);
+    return () => clearTimeout(timer);
+  }, [today]);
 
   // Newest day first; within a day, newest written first.
   const sorted = useMemo(
@@ -200,22 +216,32 @@ function Main({
   };
 
   // ---- letters ----
+  // Latest letters, for code that resumes after an await (the list may have changed meanwhile).
+  const lettersRef = useRef(letters);
   const commitLetters = (next: Letter[]) => {
+    lettersRef.current = next;
     setLetters(next);
     saveLetters(next).catch(warnSaveFailed);
   };
 
+  /** Records a scheduled notification on its letter — or cancels it if the letter was deleted meanwhile. */
+  const attachNotification = (letterId: string, notificationId: string | undefined) => {
+    if (!notificationId) return;
+    const current = lettersRef.current;
+    if (!current.some((l) => l.id === letterId)) {
+      cancelNotification(notificationId);
+      return;
+    }
+    commitLetters(current.map((l) => (l.id === letterId ? { ...l, notificationId } : l)));
+  };
+
   const sealLetter = async (body: string, opensOn: string) => {
     const letter: Letter = { id: newId(), body, writtenOn: today, opensOn, createdAt: Date.now() };
-    const next = [...letters, letter];
-    commitLetters(next);
+    commitLetters([...letters, letter]);
     setOverlay(null);
     setTab('letters');
     // Ask for notification permission after sealing, so the prompt makes sense in context.
-    const notificationId = await scheduleLetterNotification(letter);
-    if (notificationId) {
-      commitLetters(next.map((l) => (l.id === letter.id ? { ...l, notificationId } : l)));
-    }
+    attachNotification(letter.id, await scheduleLetterNotification(letter));
   };
 
   const openLetter = (letter: Letter) => {
@@ -247,14 +273,14 @@ function Main({
       const result = await importBackup({ entries, letters });
       if (!result) return;
       commitEntries(result.entries);
-      // Imported sealed letters get their own unlock notifications on this phone.
+      commitLetters(result.letters);
+      // Imported sealed letters get their own unlock notifications on this phone. One at a time,
+      // so the permission prompt appears at most once.
       const known = new Set(letters.map((l) => l.id));
-      const withNotifications = await Promise.all(
-        result.letters.map(async (l) =>
-          known.has(l.id) || l.openedAt ? l : { ...l, notificationId: await scheduleLetterNotification(l) },
-        ),
-      );
-      commitLetters(withNotifications);
+      for (const l of result.letters) {
+        if (known.has(l.id) || l.openedAt) continue;
+        attachNotification(l.id, await scheduleLetterNotification(l));
+      }
       const summary =
         result.addedEntries + result.addedLetters === 0
           ? 'Everything in that backup is already in your diary.'
@@ -352,6 +378,7 @@ function Main({
               {tab === 'calendar' && (
                 <CalendarScreen
                   entries={sorted}
+                  today={today}
                   selected={selectedDay}
                   onSelect={setSelectedDay}
                   onOpen={openEntry}
@@ -396,6 +423,12 @@ function Main({
       {locked && (
         <View style={StyleSheet.absoluteFill}>
           <LockScreen onUnlocked={() => setLocked(false)} />
+        </View>
+      )}
+
+      {covered && (
+        <View style={[StyleSheet.absoluteFill, styles.cover]}>
+          <Text style={styles.coverIcon}>🔒</Text>
         </View>
       )}
     </SafeAreaView>
@@ -453,5 +486,7 @@ const useStyles = makeStyles(({ colors }) =>
     },
     tabLabel: { fontSize: 12, color: colors.muted, marginTop: 2 },
     tabActive: { color: colors.accent, fontWeight: '700' },
+    cover: { backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+    coverIcon: { fontSize: 48 },
   }),
 );

@@ -1,6 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { File, Paths } from 'expo-file-system';
+import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 import { isDateKey, todayKey } from './dates';
 import { savePhotoFromBase64 } from './storage';
 import { MOODS } from './theme';
@@ -27,9 +28,24 @@ interface BackupFile {
   letters: Letter[];
 }
 
+const FILE_PREFIX = 'my-diary-backup-';
+
 /** Builds the backup file and opens the share sheet so the user can save it (Files, Drive, email…). */
 export async function exportBackup(entries: Entry[], letters: Letter[]) {
-  const packed: BackupEntry[] = [];
+  const file = new File(Paths.cache, `${FILE_PREFIX}${todayKey()}.json`);
+  file.create({ overwrite: true });
+
+  // Written a piece at a time (one entry and its photo per write) so a diary with many photos never
+  // has to fit in memory as one giant string. The result is the same BackupFile JSON as before.
+  const head: Omit<BackupFile, 'entries'> = {
+    app: APP_ID,
+    version: VERSION,
+    exportedAt: Date.now(),
+    // Notification ids only make sense on this phone.
+    letters: letters.map(({ notificationId, ...l }) => l),
+  };
+  file.write(`${JSON.stringify(head).slice(0, -1)},"entries":[`);
+  let first = true;
   for (const { photoUri, ...rest } of entries) {
     let photo: BackupEntry['photo'];
     if (photoUri) {
@@ -40,22 +56,11 @@ export async function exportBackup(entries: Entry[], letters: Letter[]) {
         // Photo missing on disk — keep the entry, skip the photo.
       }
     }
-    packed.push(photo ? { ...rest, photo } : rest);
+    const packed: BackupEntry = photo ? { ...rest, photo } : rest;
+    file.write(`${first ? '' : ','}${JSON.stringify(packed)}`, { append: true });
+    first = false;
   }
-
-  const data: BackupFile = {
-    app: APP_ID,
-    version: VERSION,
-    exportedAt: Date.now(),
-    // Notification ids only make sense on this phone.
-    entries: packed,
-    letters: letters.map(({ notificationId, ...l }) => l),
-  };
-
-  const file = new File(Paths.cache, `my-diary-backup-${todayKey()}.json`);
-  if (file.exists) file.delete();
-  file.create();
-  file.write(JSON.stringify(data));
+  file.write(']}', { append: true });
 
   if (!(await Sharing.isAvailableAsync())) {
     throw new Error('Sharing is not available on this device.');
@@ -65,6 +70,21 @@ export async function exportBackup(entries: Entry[], letters: Letter[]) {
     UTI: 'public.json',
     dialogTitle: 'Save your diary backup',
   });
+}
+
+/**
+ * Deletes backup files earlier exports left in the cache. They're kept until the next launch rather
+ * than removed right after sharing, because some Android apps read the file after the share sheet closes.
+ */
+export function removeOldBackupFiles() {
+  if (Platform.OS === 'web') return;
+  try {
+    for (const item of new Directory(Paths.cache).list()) {
+      if (item instanceof File && item.name.startsWith(FILE_PREFIX)) item.delete();
+    }
+  } catch {
+    // Only a cleanup; try again next launch.
+  }
 }
 
 export interface ImportResult {

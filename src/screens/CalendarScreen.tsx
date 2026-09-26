@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import EntryCard from '../components/EntryCard';
-import { longDate, MONTHS, toKey, todayKey } from '../dates';
+import { longDate, MONTHS, toKey } from '../dates';
 import { makeStyles, moodOf, useTheme } from '../theme';
 import { Entry } from '../types';
 
@@ -9,11 +9,13 @@ const WEEK_HEADER = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export default function CalendarScreen({
   entries,
+  today,
   onOpen,
   selected,
   onSelect,
 }: {
   entries: Entry[];
+  today: string;
   onOpen: (e: Entry) => void;
   selected: string;
   onSelect: (dateKey: string) => void;
@@ -43,7 +45,6 @@ export default function CalendarScreen({
 
   const shiftMonth = (delta: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + delta, 1));
 
-  const today = todayKey();
   const dayEntries = byDay.get(selected) ?? [];
 
   return (

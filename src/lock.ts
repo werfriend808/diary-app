@@ -18,6 +18,9 @@ export async function canLock(): Promise<boolean> {
 /** Shows Face ID / fingerprint, falling back to the phone's passcode. */
 export async function unlock(prompt = 'Unlock your diary'): Promise<boolean> {
   if (Platform.OS === 'web') return true;
+  // If the phone's own screen lock was removed after the diary lock was turned on, there is nothing
+  // left to check against — refusing here would shut the owner out of their diary for good.
+  if (!(await canLock())) return true;
   try {
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: prompt,

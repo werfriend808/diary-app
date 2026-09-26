@@ -15,7 +15,9 @@ export async function loadSettings(): Promise<Settings> {
     const raw = await AsyncStorage.getItem(KEY);
     return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
   } catch {
-    return DEFAULT_SETTINGS;
+    // Settings couldn't be read, so we don't know whether the lock was on. Assume it was: an extra
+    // unlock prompt is better than opening a locked diary. (Phones without a screen lock skip it.)
+    return { ...DEFAULT_SETTINGS, lock: true };
   }
 }
 
