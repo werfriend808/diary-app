@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   Alert,
   BackHandler,
@@ -63,14 +63,15 @@ export default function EditorScreen({
     ]);
   };
 
-  // Android hardware back button behaves like "Back".
+  // Android hardware back button behaves like "Back". Registered once, so the lock screen's handler stays on top.
+  const onBack = useEffectEvent(requestClose);
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      requestClose();
+      onBack();
       return true;
     });
     return () => sub.remove();
-  });
+  }, []);
 
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({

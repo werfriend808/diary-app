@@ -10,7 +10,11 @@ export const fromKey = (key: string) => {
   return new Date(y, m - 1, d);
 };
 
-export const shiftDay = (key: string, delta: number) => {
+/** True for a real calendar day written as 'YYYY-MM-DD' (rejects '2024-02-30'). */
+export const isDateKey = (v: unknown): v is string =>
+  typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && toKey(fromKey(v)) === v;
+
+export const shiftDay =(key: string, delta: number) => {
   const d = fromKey(key);
   d.setDate(d.getDate() + delta);
   return toKey(d);

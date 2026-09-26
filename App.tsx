@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { exportBackup, importBackup } from './src/backup';
 import MemoriesSection from './src/components/MemoriesSection';
@@ -46,17 +46,25 @@ interface Data {
 export default function App() {
   const [data, setData] = useState<Data | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  useEffect(() => {
-    Promise.all([loadEntries(), loadLetters(), loadSettings()]).then(([entries, letters, s]) => {
-      setSettings(s);
-      setData({ entries, letters });
-    });
-  }, []);
+  // If the diary can't be read, stop here: the app must not start empty and then save over it.
+  const load = () => {
+    setLoadFailed(false);
+    Promise.all([loadEntries(), loadLetters(), loadSettings()]).then(
+      ([entries, letters, s]) => {
+        setSettings(s);
+        setData({ entries, letters });
+      },
+      () => setLoadFailed(true),
+    );
+  };
+
+  useEffect(load, []);
 
   const changeSettings = (s: Settings) => {
     setSettings(s);
-    saveSettings(s);
+    saveSettings(s).catch(warnSaveFailed);
   };
 
   return (
@@ -64,6 +72,8 @@ export default function App() {
       <ThemeProvider pref={settings?.theme ?? 'system'}>
         {data && settings ? (
           <Main initial={data} settings={settings} onChangeSettings={changeSettings} />
+        ) : loadFailed ? (
+          <LoadFailed onRetry={load} />
         ) : (
           <Loading />
         )}
@@ -72,11 +82,38 @@ export default function App() {
   );
 }
 
+function warnSaveFailed() {
+  Alert.alert(
+    'Couldn’t save',
+    'Your last change may be lost when the app closes. Try again, and save a backup from Settings.',
+  );
+}
+
 function Loading() {
   const { colors } = useTheme();
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
       <ActivityIndicator color={colors.accent} />
+    </View>
+  );
+}
+
+function LoadFailed({ onRetry }: { onRetry: () => void }) {
+  const { colors } = useTheme();
+  return (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: colors.bg }}>
+      <Text style={{ fontSize: 20, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
+        Couldn’t open your diary
+      </Text>
+      <Text style={{ marginTop: 8, fontSize: 15, lineHeight: 21, color: colors.muted, textAlign: 'center' }}>
+        Nothing has been changed or deleted. Try again, or restart the app.
+      </Text>
+      <Pressable
+        onPress={onRetry}
+        style={{ marginTop: 24, backgroundColor: colors.accent, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 40 }}
+      >
+        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Try again</Text>
+      </Pressable>
     </View>
   );
 }
@@ -113,7 +150,11 @@ function Main({
         setToday(todayKey());
         const away = backgroundedAt.current ? Date.now() - backgroundedAt.current : 0;
         backgroundedAt.current = null;
-        if (lockOn.current && away > RELOCK_AFTER_MS) setLocked(true);
+        if (lockOn.current && away > RELOCK_AFTER_MS) {
+          // The screens stay mounted under the lock, so drop focus or the keyboard would type into them.
+          Keyboard.dismiss();
+          setLocked(true);
+        }
       }
     });
     return () => sub.remove();
@@ -131,7 +172,7 @@ function Main({
   // ---- entries ----
   const commitEntries = (next: Entry[]) => {
     setEntries(next);
-    saveEntries(next);
+    saveEntries(next).catch(warnSaveFailed);
   };
 
   const startNewEntry = () => {
@@ -161,7 +202,7 @@ function Main({
   // ---- letters ----
   const commitLetters = (next: Letter[]) => {
     setLetters(next);
-    saveLetters(next);
+    saveLetters(next).catch(warnSaveFailed);
   };
 
   const sealLetter = async (body: string, opensOn: string) => {
@@ -214,12 +255,15 @@ function Main({
         ),
       );
       commitLetters(withNotifications);
-      Alert.alert(
-        'Backup restored',
+      const summary =
         result.addedEntries + result.addedLetters === 0
           ? 'Everything in that backup is already in your diary.'
-          : `Added ${result.addedEntries} ${result.addedEntries === 1 ? 'entry' : 'entries'} and ${result.addedLetters} ${result.addedLetters === 1 ? 'letter' : 'letters'}.`,
-      );
+          : `Added ${result.addedEntries} ${result.addedEntries === 1 ? 'entry' : 'entries'} and ${result.addedLetters} ${result.addedLetters === 1 ? 'letter' : 'letters'}.`;
+      const skippedNote =
+        result.skipped > 0
+          ? ` ${result.skipped} ${result.skipped === 1 ? 'item was' : 'items were'} damaged and left out.`
+          : '';
+      Alert.alert('Backup restored', summary + skippedNote);
     } catch (e) {
       Alert.alert('Couldn’t restore', e instanceof Error ? e.message : 'Please try again.');
     }
@@ -261,87 +305,98 @@ function Main({
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      {locked ? (
-        <LockScreen onUnlocked={() => setLocked(false)} />
-      ) : overlay ? (
-        renderOverlay()
-      ) : (
-        <>
-          <View style={styles.header}>
-            <Text style={styles.appTitle}>{tab === 'letters' ? 'Letters' : 'My Diary'}</Text>
-            <View style={styles.headerRight}>
-              {tab !== 'letters' && (
-                <Text style={styles.count}>
-                  {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
-                </Text>
-              )}
-              <Pressable
-                onPress={() => setOverlay({ kind: 'settings' })}
-                hitSlop={12}
-                accessibilityLabel="Settings"
-              >
-                <Text style={styles.gear}>⚙︎</Text>
-              </Pressable>
+      {/* The lock covers the app instead of replacing it, so a half-written entry survives re-locking. */}
+      <View
+        style={{ flex: 1 }}
+        importantForAccessibility={locked ? 'no-hide-descendants' : 'auto'}
+        accessibilityElementsHidden={locked}
+      >
+        {overlay ? (
+          renderOverlay()
+        ) : (
+          <>
+            <View style={styles.header}>
+              <Text style={styles.appTitle}>{tab === 'letters' ? 'Letters' : 'My Diary'}</Text>
+              <View style={styles.headerRight}>
+                {tab !== 'letters' && (
+                  <Text style={styles.count}>
+                    {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+                  </Text>
+                )}
+                <Pressable
+                  onPress={() => setOverlay({ kind: 'settings' })}
+                  hitSlop={12}
+                  accessibilityLabel="Settings"
+                >
+                  <Text style={styles.gear}>⚙︎</Text>
+                </Pressable>
+              </View>
             </View>
-          </View>
 
-          <View style={{ flex: 1 }}>
-            {tab === 'list' && (
-              <EntryListScreen
-                entries={sorted}
-                onOpen={openEntry}
-                header={
-                  <MemoriesSection
-                    memories={memories}
-                    readyLetters={readyLetters}
-                    hasEntries={entries.length > 0}
-                    onOpen={openEntry}
-                    onOpenLetters={() => setTab('letters')}
-                  />
-                }
-              />
-            )}
-            {tab === 'calendar' && (
-              <CalendarScreen
-                entries={sorted}
-                selected={selectedDay}
-                onSelect={setSelectedDay}
-                onOpen={openEntry}
-              />
-            )}
-            {tab === 'letters' && (
-              <LettersScreen
-                letters={letters}
-                today={today}
-                onWrite={() => setOverlay({ kind: 'compose' })}
-                onOpen={openLetter}
-                onDelete={deleteLetter}
-              />
-            )}
+            <View style={{ flex: 1 }}>
+              {tab === 'list' && (
+                <EntryListScreen
+                  entries={sorted}
+                  onOpen={openEntry}
+                  header={
+                    <MemoriesSection
+                      memories={memories}
+                      readyLetters={readyLetters}
+                      hasEntries={entries.length > 0}
+                      onOpen={openEntry}
+                      onOpenLetters={() => setTab('letters')}
+                    />
+                  }
+                />
+              )}
+              {tab === 'calendar' && (
+                <CalendarScreen
+                  entries={sorted}
+                  selected={selectedDay}
+                  onSelect={setSelectedDay}
+                  onOpen={openEntry}
+                />
+              )}
+              {tab === 'letters' && (
+                <LettersScreen
+                  letters={letters}
+                  today={today}
+                  onWrite={() => setOverlay({ kind: 'compose' })}
+                  onOpen={openLetter}
+                  onDelete={deleteLetter}
+                />
+              )}
 
-            {tab !== 'letters' && (
-              <Pressable
-                onPress={startNewEntry}
-                style={({ pressed }) => [styles.fab, pressed && { transform: [{ scale: 0.94 }] }]}
-                accessibilityLabel="New entry"
-              >
-                <Text style={styles.fabText}>＋</Text>
-              </Pressable>
-            )}
-          </View>
+              {tab !== 'letters' && (
+                <Pressable
+                  onPress={startNewEntry}
+                  style={({ pressed }) => [styles.fab, pressed && { transform: [{ scale: 0.94 }] }]}
+                  accessibilityLabel="New entry"
+                >
+                  <Text style={styles.fabText}>＋</Text>
+                </Pressable>
+              )}
+            </View>
 
-          <View style={styles.tabBar}>
-            {TABS.map((t) => (
-              <Pressable key={t.key} style={styles.tab} onPress={() => setTab(t.key)}>
-                <View>
-                  <Text style={styles.tabIcon}>{t.icon}</Text>
-                  {t.key === 'letters' && readyLetters > 0 && <View style={styles.badge} />}
-                </View>
-                <Text style={[styles.tabLabel, tab === t.key && styles.tabActive]}>{t.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </>
+            <View style={styles.tabBar}>
+              {TABS.map((t) => (
+                <Pressable key={t.key} style={styles.tab} onPress={() => setTab(t.key)}>
+                  <View>
+                    <Text style={styles.tabIcon}>{t.icon}</Text>
+                    {t.key === 'letters' && readyLetters > 0 && <View style={styles.badge} />}
+                  </View>
+                  <Text style={[styles.tabLabel, tab === t.key && styles.tabActive]}>{t.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </>
+        )}
+      </View>
+
+      {locked && (
+        <View style={StyleSheet.absoluteFill}>
+          <LockScreen onUnlocked={() => setLocked(false)} />
+        </View>
       )}
     </SafeAreaView>
   );

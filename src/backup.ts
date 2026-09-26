@@ -1,9 +1,10 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { todayKey } from './dates';
+import { isDateKey, todayKey } from './dates';
 import { savePhotoFromBase64 } from './storage';
-import { Entry, Letter } from './types';
+import { MOODS } from './theme';
+import { Entry, Letter, MoodKey } from './types';
 
 /**
  * Backup file format (one JSON file):
@@ -71,6 +72,8 @@ export interface ImportResult {
   letters: Letter[];
   addedEntries: number;
   addedLetters: number;
+  /** Items in the file that were damaged or incomplete and were left out. */
+  skipped: number;
 }
 
 /**
@@ -103,27 +106,90 @@ export async function importBackup(current: {
 
   const entryIds = new Set(current.entries.map((e) => e.id));
   const letterIds = new Set(current.letters.map((l) => l.id));
+  let skipped = 0;
 
   const newEntries: Entry[] = [];
-  for (const { photo, ...rest } of data.entries) {
-    if (!rest.id || entryIds.has(rest.id)) continue;
+  for (const raw of data.entries as unknown[]) {
+    const entry = readEntry(raw);
+    if (!entry) {
+      skipped++;
+      continue;
+    }
+    if (entryIds.has(entry.id)) continue;
+    entryIds.add(entry.id);
+    const photo = (raw as { photo?: { ext?: unknown; base64?: unknown } }).photo;
     let photoUri: string | undefined;
-    if (photo?.base64) {
+    if (typeof photo?.base64 === 'string' && photo.base64) {
       try {
-        photoUri = savePhotoFromBase64(photo.base64, photo.ext || '.jpg');
+        photoUri = savePhotoFromBase64(photo.base64, typeof photo.ext === 'string' ? photo.ext : '.jpg');
       } catch {
         // Keep the text even if the photo can't be written.
       }
     }
-    newEntries.push(photoUri ? { ...rest, photoUri } : rest);
+    newEntries.push(photoUri ? { ...entry, photoUri } : entry);
   }
 
-  const newLetters = data.letters.filter((l) => l.id && !letterIds.has(l.id));
+  const newLetters: Letter[] = [];
+  for (const raw of data.letters as unknown[]) {
+    const letter = readLetter(raw);
+    if (!letter) {
+      skipped++;
+      continue;
+    }
+    if (letterIds.has(letter.id)) continue;
+    letterIds.add(letter.id);
+    newLetters.push(letter);
+  }
 
   return {
     entries: [...current.entries, ...newEntries],
     letters: [...current.letters, ...newLetters],
     addedEntries: newEntries.length,
     addedLetters: newLetters.length,
+    skipped,
   };
+}
+
+// A backup file can be edited or damaged, and whatever gets imported is saved and rendered on every launch.
+// So each item is rebuilt field by field: anything malformed is skipped, and unknown fields
+// (like a photoUri pointing somewhere else on the phone) are never carried over.
+
+const isText = (v: unknown): v is string => typeof v === 'string';
+const isTime = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const MOOD_KEYS: readonly unknown[] = MOODS.map((m) => m.key);
+
+function readEntry(raw: unknown): Omit<Entry, 'photoUri'> | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (!isText(r.id) || !r.id || !isDateKey(r.date) || !isText(r.title) || !isText(r.body) || !isTime(r.createdAt)) {
+    return null;
+  }
+  const entry: Omit<Entry, 'photoUri'> = {
+    id: r.id,
+    date: r.date,
+    title: r.title,
+    body: r.body,
+    createdAt: r.createdAt,
+    updatedAt: isTime(r.updatedAt) ? r.updatedAt : r.createdAt,
+  };
+  if (MOOD_KEYS.includes(r.mood)) entry.mood = r.mood as MoodKey;
+  return entry;
+}
+
+function readLetter(raw: unknown): Letter | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (
+    !isText(r.id) ||
+    !r.id ||
+    !isText(r.body) ||
+    !isDateKey(r.writtenOn) ||
+    !isDateKey(r.opensOn) ||
+    !isTime(r.createdAt)
+  ) {
+    return null;
+  }
+  const letter: Letter = { id: r.id, body: r.body, writtenOn: r.writtenOn, opensOn: r.opensOn, createdAt: r.createdAt };
+  if (isTime(r.openedAt)) letter.openedAt = r.openedAt;
+  return letter;
 }

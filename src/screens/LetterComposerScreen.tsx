@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import {
   Alert,
   BackHandler,
@@ -45,13 +45,15 @@ export default function LetterComposerScreen({
     ]);
   };
 
+  // Registered once, so the lock screen's handler stays on top.
+  const onBack = useEffectEvent(requestClose);
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      requestClose();
+      onBack();
       return true;
     });
     return () => sub.remove();
-  });
+  }, []);
 
   const seal = () => {
     if (!body.trim()) {

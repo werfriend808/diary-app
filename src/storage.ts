@@ -4,14 +4,19 @@ import { Entry, Letter } from './types';
 
 const KEY = 'diary.entries.v1';
 
-export async function loadEntries(): Promise<Entry[]> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    return raw ? (JSON.parse(raw) as Entry[]) : [];
-  } catch {
-    return [];
-  }
+/**
+ * Only "nothing saved yet" becomes an empty list. A failed read or unreadable data throws instead:
+ * falling back to [] would let the next save overwrite the whole diary.
+ */
+async function loadList<T>(key: string): Promise<T[]> {
+  const raw = await AsyncStorage.getItem(key);
+  if (raw === null) return [];
+  const parsed: unknown = JSON.parse(raw);
+  if (!Array.isArray(parsed)) throw new Error(`Stored data under ${key} is not a list.`);
+  return parsed as T[];
 }
+
+export const loadEntries = () => loadList<Entry>(KEY);
 
 export async function saveEntries(entries: Entry[]) {
   await AsyncStorage.setItem(KEY, JSON.stringify(entries));
@@ -19,14 +24,7 @@ export async function saveEntries(entries: Entry[]) {
 
 const LETTERS_KEY = 'diary.letters.v1';
 
-export async function loadLetters(): Promise<Letter[]> {
-  try {
-    const raw = await AsyncStorage.getItem(LETTERS_KEY);
-    return raw ? (JSON.parse(raw) as Letter[]) : [];
-  } catch {
-    return [];
-  }
-}
+export const loadLetters = () => loadList<Letter>(LETTERS_KEY);
 
 export async function saveLetters(letters: Letter[]) {
   await AsyncStorage.setItem(LETTERS_KEY, JSON.stringify(letters));
@@ -64,7 +62,9 @@ export const newId = () => `${Date.now().toString(36)}${Math.random().toString(3
 
 /** Writes a photo restored from a backup into the app's photo folder; returns its new URI. */
 export function savePhotoFromBase64(base64: string, extension: string): string {
-  const ext = extension.startsWith('.') ? extension : `.${extension}`;
+  // The extension comes from the backup file, so only allow a plain one (no "/" or "..").
+  const clean = /^\.?[a-z0-9]{1,5}$/i.test(extension) ? extension : '.jpg';
+  const ext = clean.startsWith('.') ? clean : `.${clean}`;
   const dest = new File(photoDir(), `${Date.now()}-${Math.random().toString(36).slice(2, 7)}${ext}`);
   dest.write(base64, { encoding: 'base64' });
   return dest.uri;

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { unlock } from '../lock';
 import { makeStyles, serif } from '../theme';
 
@@ -20,6 +20,16 @@ export default function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
   useEffect(() => {
     tryUnlock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // The app's screens stay mounted underneath, so keep Android's back button from reaching them.
+  // Registered last, this handler runs first.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      BackHandler.exitApp();
+      return true;
+    });
+    return () => sub.remove();
   }, []);
 
   return (

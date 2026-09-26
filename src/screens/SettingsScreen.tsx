@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useEffectEvent, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -42,13 +42,15 @@ export default function SettingsScreen({
     canLock().then(setLockAvailable);
   }, []);
 
+  // Registered once, so the lock screen's handler stays on top.
+  const onBack = useEffectEvent(onClose);
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      onClose();
+      onBack();
       return true;
     });
     return () => sub.remove();
-  }, [onClose]);
+  }, []);
 
   const toggleLock = async (on: boolean) => {
     if (on && !lockAvailable) {

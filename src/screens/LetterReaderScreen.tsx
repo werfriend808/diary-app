@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useEffectEvent } from 'react';
 import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { humanSpan, longDate, toKey } from '../dates';
 import { makeStyles, serif } from '../theme';
@@ -6,13 +6,15 @@ import { Letter } from '../types';
 
 export default function LetterReaderScreen({ letter, onClose }: { letter: Letter; onClose: () => void }) {
   const styles = useStyles();
+  // Registered once, so the lock screen's handler stays on top.
+  const onBack = useEffectEvent(onClose);
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      onClose();
+      onBack();
       return true;
     });
     return () => sub.remove();
-  }, [onClose]);
+  }, []);
 
   const openedOn = toKey(new Date(letter.openedAt ?? Date.now()));
 
