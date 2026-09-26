@@ -16,7 +16,8 @@ export default function LetterReaderScreen({ letter, onClose }: { letter: Letter
     return () => sub.remove();
   }, []);
 
-  const openedOn = toKey(new Date(letter.openedAt ?? Date.now()));
+  // openLetter always stamps openedAt before showing a letter; opensOn is only a fallback.
+  const openedOn = letter.openedAt ? toKey(new Date(letter.openedAt)) : letter.opensOn;
 
   return (
     <View style={{ flex: 1 }}>

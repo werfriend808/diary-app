@@ -16,6 +16,8 @@ let cached: NotificationsModule | null = null;
 function notifications(): NotificationsModule | null {
   if (!supported) return null;
   if (!cached) {
+    // A lazy require on purpose (see above) — a top-level import would crash Expo Go on Android.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     cached = require('expo-notifications') as NotificationsModule;
     // Show letter notifications even if the app happens to be open.
     cached.setNotificationHandler({
