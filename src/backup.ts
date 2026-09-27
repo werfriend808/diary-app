@@ -4,6 +4,7 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { isDateKey, toKey, todayKey } from './dates';
 import { t } from './i18n';
+import { MAX_PLACE_LENGTH } from './placeName';
 import { isLive } from './records';
 import { photoFile, savePhotoFromBase64 } from './storage';
 import { MOODS } from './theme';
@@ -16,7 +17,7 @@ import { Entry, Letter, MoodKey } from './types';
  *   entries: [ ...Entry fields, photo?: { ext, base64 } ],   // the photo itself is embedded next to photoName
  *   letters: [ ...Letter fields except notificationId ]      // opensAt: exact opening time, if set
  * }
- * Still version 1: fields added since (photoName, letters' updatedAt and opensAt) are optional, older
+ * Still version 1: fields added since (photoName, place, letters' updatedAt and opensAt) are optional, older
  * app versions ignore them, and files written before them still import. Older files have no photoName
  * (their photos were only embedded), and letters without updatedAt (falls back to createdAt) or
  * opensAt (the letter opens at 9 AM on opensOn). Older app versions reading a newer file also open
@@ -227,6 +228,9 @@ function readEntry(raw: unknown): Omit<Entry, 'photoName'> | null {
     updatedAt: isTime(r.updatedAt) ? r.updatedAt : r.createdAt,
   };
   if (MOOD_KEYS.includes(r.mood)) entry.mood = r.mood as MoodKey;
+  // Backups made before places existed simply have none.
+  const place = isText(r.place) ? r.place.trim().slice(0, MAX_PLACE_LENGTH) : '';
+  if (place) entry.place = place;
   return entry;
 }
 

@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { LanguagePref, languageName, LANGUAGES } from '../i18n';
 import { canLock, unlock } from '../lock';
 import { Settings } from '../settings';
-import { makeStyles, ThemePref, useTheme } from '../theme';
+import { makeStyles, ThemePref, TYPE, useTheme } from '../theme';
 
 const THEMES = [
   { key: 'system', label: 'settings.themeSystem' },
@@ -27,12 +27,14 @@ export default function SettingsScreen({
   onChange,
   onExport,
   onImport,
+  onOpenLicenses,
   onClose,
 }: {
   settings: Settings;
   onChange: (s: Settings) => void;
   onExport: () => Promise<void>;
   onImport: () => Promise<void>;
+  onOpenLicenses: () => void;
   onClose: () => void;
 }) {
   const { colors } = useTheme();
@@ -141,6 +143,14 @@ export default function SettingsScreen({
           <Text style={styles.warn}>{t('settings.backupWarning')}</Text>
         </Group>
 
+        <ActionButton
+          label={t('settings.licenses')}
+          sub={t('settings.licensesSub')}
+          busy={false}
+          disabled={false}
+          onPress={onOpenLicenses}
+        />
+
         <Text style={styles.footer}>{t('settings.footer')}</Text>
       </ScrollView>
     </View>
@@ -206,7 +216,7 @@ function ActionButton(p: {
   );
 }
 
-const useStyles = makeStyles(({ colors }) =>
+const useStyles = makeStyles(({ colors, fonts, korean }) =>
   StyleSheet.create({
     topBar: {
       flexDirection: 'row',
@@ -217,12 +227,12 @@ const useStyles = makeStyles(({ colors }) =>
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.line,
     },
-    topBtn: { fontSize: 16, color: colors.accent, fontWeight: '600' },
-    topTitle: { fontSize: 16, fontWeight: '600', color: colors.ink },
+    topBtn: { ...fonts.uiSemiBold, fontSize: 16, color: colors.accent },
+    topTitle: { ...fonts.uiSemiBold, ...(korean ? TYPE.screenTitle : { fontSize: 16 }), color: colors.ink },
     content: { padding: 16, paddingBottom: 60 },
     groupTitle: {
+      ...fonts.uiSemiBold,
       fontSize: 13,
-      fontWeight: '600',
       color: colors.muted,
       letterSpacing: 0.5,
       marginBottom: 10,
@@ -237,8 +247,8 @@ const useStyles = makeStyles(({ colors }) =>
     },
     segBtn: { flex: 1, paddingVertical: 10, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
     segActive: { backgroundColor: colors.accent },
-    segText: { fontSize: 15, color: colors.ink, textAlign: 'center' },
-    segTextActive: { color: '#fff', fontWeight: '700' },
+    segText: { ...fonts.ui, fontSize: 15, color: colors.ink, textAlign: 'center' },
+    segTextActive: { ...fonts.uiBold, color: '#fff' },
     row: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -249,9 +259,9 @@ const useStyles = makeStyles(({ colors }) =>
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.line,
     },
-    rowTitle: { fontSize: 16, color: colors.ink, fontWeight: '600' },
-    rowSub: { fontSize: 13, color: colors.muted, marginTop: 3, lineHeight: 18 },
-    note: { fontSize: 14, color: colors.ink, lineHeight: 20, marginBottom: 12 },
+    rowTitle: { ...fonts.uiSemiBold, fontSize: 16, color: colors.ink },
+    rowSub: { ...fonts.ui, fontSize: 13, color: colors.muted, marginTop: 3, lineHeight: 18 },
+    note: { ...fonts.ui, fontSize: 14, color: colors.ink, lineHeight: 20, marginBottom: 12 },
     action: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -263,9 +273,9 @@ const useStyles = makeStyles(({ colors }) =>
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.line,
     },
-    actionTitle: { fontSize: 16, color: colors.accent, fontWeight: '600' },
+    actionTitle: { ...fonts.uiSemiBold, fontSize: 16, color: colors.accent },
     chev: { fontSize: 24, color: colors.muted },
-    warn: { fontSize: 12, color: colors.muted, lineHeight: 17, marginTop: 2 },
-    footer: { fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 8 },
+    warn: { ...fonts.ui, fontSize: 12, color: colors.muted, lineHeight: 17, marginTop: 2 },
+    footer: { ...fonts.ui, fontSize: 12, color: colors.muted, textAlign: 'center', marginTop: 8 },
   }),
 );

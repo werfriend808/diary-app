@@ -35,12 +35,12 @@ export default function EntryListScreen({
   );
 }
 
-const useStyles = makeStyles(({ colors }) =>
+const useStyles = makeStyles(({ colors, fonts }) =>
   StyleSheet.create({
     list: { padding: 16, paddingBottom: 110 },
     empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
     emptyEmoji: { fontSize: 56, marginBottom: 12 },
-    emptyTitle: { fontSize: 20, fontWeight: '700', color: colors.ink },
-    emptyText: { marginTop: 6, fontSize: 15, color: colors.muted, textAlign: 'center' },
+    emptyTitle: { ...fonts.uiBold, fontSize: 20, color: colors.ink },
+    emptyText: { ...fonts.ui, marginTop: 6, fontSize: 15, color: colors.muted, textAlign: 'center' },
   }),
 );

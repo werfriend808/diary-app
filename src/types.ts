@@ -13,6 +13,11 @@ export interface Entry {
    * because a full file:// path changes on another phone or after reinstalling the app.
    */
   photoName?: string;
+  /**
+   * Where the entry was written, as the user typed or confirmed it (e.g. "서울특별시 성동구 성수동").
+   * Only this text is kept — never coordinates. Missing on older entries and when left empty.
+   */
+  place?: string;
   createdAt: number;
   updatedAt: number;
   /**

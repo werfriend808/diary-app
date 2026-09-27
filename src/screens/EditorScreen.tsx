@@ -1,11 +1,12 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   BackHandler,
   Image,
+  Keyboard,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,8 +16,10 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { longDate, shiftDay, todayKey } from '../dates';
+import { lookUpCurrentPlace, PlaceLookup } from '../location';
+import { MAX_PLACE_LENGTH } from '../placeName';
 import { deletePhoto, persistPhoto, photoUrl } from '../storage';
-import { MOODS, makeStyles, useTheme } from '../theme';
+import { MOODS, makeStyles, TYPE, useTheme } from '../theme';
 import { Entry, MoodKey } from '../types';
 
 export default function EditorScreen({
@@ -32,7 +35,7 @@ export default function EditorScreen({
   onDelete: (id: string) => void;
   onClose: () => void;
 }) {
-  const { colors } = useTheme();
+  const { colors, fonts } = useTheme();
   const styles = useStyles();
   const { t } = useTranslation();
   const [date, setDate] = useState(original.date);
@@ -40,7 +43,23 @@ export default function EditorScreen({
   const [body, setBody] = useState(original.body);
   const [mood, setMood] = useState<MoodKey | undefined>(original.mood);
   const [photoName, setPhotoName] = useState(original.photoName);
+  const [place, setPlace] = useState(original.place ?? '');
   const [busy, setBusy] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [placeNote, setPlaceNote] = useState<Extract<PlaceLookup, { ok: false }>['reason']>();
+
+  // The place field sits below the tall body, so the keyboard would cover it: when it's focused, scroll
+  // it up to just above the keyboard (on focus if the keyboard is already open, else once it has opened).
+  const scrollRef = useRef<ScrollView>(null);
+  const placeY = useRef(0);
+  const placeFocused = useRef(false);
+  const scrollToPlace = () => scrollRef.current?.scrollTo({ y: Math.max(placeY.current - 16, 0), animated: true });
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      if (placeFocused.current) scrollToPlace();
+    });
+    return () => sub.remove();
+  }, []);
 
   // File names of photos copied during this edit that haven't been saved yet — cleaned up on cancel.
   const unsavedPhotos = useRef<string[]>([]);
@@ -50,7 +69,8 @@ export default function EditorScreen({
     title !== original.title ||
     body !== original.body ||
     mood !== original.mood ||
-    photoName !== original.photoName;
+    photoName !== original.photoName ||
+    place.trim() !== (original.place ?? '');
 
   const discard = () => {
     unsavedPhotos.current.forEach(deletePhoto);
@@ -94,6 +114,19 @@ export default function EditorScreen({
     }
   };
 
+  // Asks for location permission only here, on the button press. The name is looked up once and is
+  // just a suggestion: it fills the field, and the user can keep, change or clear it before saving.
+  const fillPlace = async () => {
+    const before = place;
+    setLocating(true);
+    setPlaceNote(undefined);
+    const result = await lookUpCurrentPlace();
+    setLocating(false);
+    if (!result.ok) setPlaceNote(result.reason);
+    // If they typed something while it was looking, keep what they typed.
+    else setPlace((current) => (current === before ? result.place : current));
+  };
+
   const save = () => {
     if (!title.trim() && !body.trim() && !photoName) {
       Alert.alert(t('editor.nothingTitle'), t('editor.nothingBody'));
@@ -103,7 +136,9 @@ export default function EditorScreen({
     if (original.photoName && original.photoName !== photoName) deletePhoto(original.photoName);
     unsavedPhotos.current.filter((n) => n !== photoName).forEach(deletePhoto);
 
-    onSave({ ...original, date, title, body, mood, photoName, updatedAt: Date.now() });
+    const { place: _oldPlace, ...rest } = original;
+    const keptPlace = place.trim();
+    onSave({ ...rest, date, title, body, mood, photoName, ...(keptPlace ? { place: keptPlace } : {}), updatedAt: Date.now() });
   };
 
   const confirmDelete = () =>
@@ -123,7 +158,9 @@ export default function EditorScreen({
   const canGoForward = date < todayKey();
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    // 'padding' on Android too: apps are always edge-to-edge now, so the window no longer shrinks for the
+    // keyboard by itself. KeyboardAvoidingView only pads by what the keyboard actually covers, never twice.
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
       <View style={styles.topBar}>
         <Pressable onPress={requestClose} hitSlop={10}>
           <Text style={styles.topBtn}>{t('common.back')}</Text>
@@ -134,7 +171,7 @@ export default function EditorScreen({
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.dateRow}>
           <Pressable onPress={() => setDate(shiftDay(date, -1))} hitSlop={12}>
             <Text style={styles.dateArrow}>‹</Text>
@@ -160,7 +197,7 @@ export default function EditorScreen({
                 style={[styles.moodBtn, active && { backgroundColor: m.color + '33', borderColor: m.color }]}
               >
                 <Text style={styles.moodEmoji}>{m.emoji}</Text>
-                <Text style={[styles.moodLabel, active && { color: colors.ink, fontWeight: '600' }]}>
+                <Text style={[styles.moodLabel, active && { ...fonts.uiSemiBold, color: colors.ink }]}>
                   {t(`moods.${m.key}`)}
                 </Text>
               </Pressable>
@@ -185,6 +222,43 @@ export default function EditorScreen({
           multiline
           textAlignVertical="top"
         />
+
+        <Text
+          style={[styles.label, styles.placeLabel]}
+          onLayout={(e) => {
+            placeY.current = e.nativeEvent.layout.y;
+          }}
+        >
+          {t('editor.placeLabel')}
+        </Text>
+        <View style={styles.placeRow}>
+          <TextInput
+            style={styles.placeInput}
+            placeholder={t('editor.placePlaceholder')}
+            placeholderTextColor={colors.muted}
+            value={place}
+            onChangeText={(v) => {
+              setPlace(v);
+              setPlaceNote(undefined);
+            }}
+            maxLength={MAX_PLACE_LENGTH}
+            onFocus={() => {
+              placeFocused.current = true;
+              if (Keyboard.isVisible()) scrollToPlace();
+            }}
+            onBlur={() => {
+              placeFocused.current = false;
+            }}
+          />
+          <Pressable onPress={fillPlace} disabled={locating} hitSlop={6} style={styles.locateBtn}>
+            {locating ? (
+              <ActivityIndicator size="small" color={colors.accent} accessibilityLabel={t('editor.locating')} />
+            ) : (
+              <Text style={styles.link}>{t('editor.useCurrentLocation')}</Text>
+            )}
+          </Pressable>
+        </View>
+        {placeNote && <Text style={styles.placeNote}>{t(`editor.placeNote.${placeNote}`)}</Text>}
 
         {photoName ? (
           <View>
@@ -214,7 +288,7 @@ export default function EditorScreen({
   );
 }
 
-const useStyles = makeStyles(({ colors }) =>
+const useStyles = makeStyles(({ colors, fonts, korean }) =>
   StyleSheet.create({
     topBar: {
       flexDirection: 'row',
@@ -225,9 +299,9 @@ const useStyles = makeStyles(({ colors }) =>
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.line,
     },
-    topBtn: { fontSize: 16, color: colors.accent },
-    saveBtn: { fontWeight: '700' },
-    topTitle: { fontSize: 16, fontWeight: '600', color: colors.ink },
+    topBtn: { ...fonts.ui, fontSize: 16, color: colors.accent },
+    saveBtn: { ...fonts.uiBold },
+    topTitle: { ...fonts.uiSemiBold, ...(korean ? TYPE.screenTitle : { fontSize: 16 }), color: colors.ink },
     content: { padding: 16, paddingBottom: 60 },
     dateRow: {
       flexDirection: 'row',
@@ -236,8 +310,8 @@ const useStyles = makeStyles(({ colors }) =>
       marginBottom: 18,
     },
     dateArrow: { fontSize: 28, color: colors.accent, paddingHorizontal: 10 },
-    dateText: { fontSize: 15, fontWeight: '600', color: colors.ink },
-    label: { fontSize: 13, color: colors.muted, marginBottom: 8 },
+    dateText: { ...fonts.uiSemiBold, fontSize: 15, color: colors.ink },
+    label: { ...fonts.ui, fontSize: 13, color: colors.muted, marginBottom: 8 },
     moodRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
     moodBtn: {
       flex: 1,
@@ -249,17 +323,32 @@ const useStyles = makeStyles(({ colors }) =>
       borderColor: 'transparent',
     },
     moodEmoji: { fontSize: 26 },
-    moodLabel: { fontSize: 11, color: colors.muted, marginTop: 2 },
+    moodLabel: { ...fonts.ui, fontSize: 11, color: colors.muted, marginTop: 2 },
+    // Writing looks exactly like reading: same font, size and line spacing as the entry is shown with.
     title: {
-      fontSize: 22,
-      fontWeight: '700',
+      ...(korean ? { ...fonts.bodyBold, ...TYPE.entryTitle } : { ...fonts.uiBold, fontSize: 22 }),
       color: colors.ink,
       paddingVertical: 8,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.line,
       marginBottom: 12,
     },
-    body: { fontSize: 16, lineHeight: 24, color: colors.ink, minHeight: 180 },
+    body: {
+      ...(korean ? { ...fonts.body, ...TYPE.entryBody } : { fontSize: 16, lineHeight: 24 }),
+      color: colors.ink,
+      minHeight: 180,
+    },
+    placeLabel: { marginTop: 20, marginBottom: 0 },
+    placeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.line,
+    },
+    placeInput: { flex: 1, ...fonts.ui, fontSize: 15, color: colors.ink, paddingVertical: 8 },
+    locateBtn: { minWidth: 40, alignItems: 'center' },
+    placeNote: { ...fonts.ui, fontSize: 13, color: colors.muted, marginTop: 6 },
     addPhoto: {
       marginTop: 16,
       borderWidth: 1.5,
@@ -269,11 +358,11 @@ const useStyles = makeStyles(({ colors }) =>
       paddingVertical: 22,
       alignItems: 'center',
     },
-    addPhotoText: { color: colors.muted, fontSize: 15 },
+    addPhotoText: { ...fonts.ui, color: colors.muted, fontSize: 15 },
     photo: { marginTop: 16, width: '100%', aspectRatio: 4 / 3, borderRadius: 14 },
     photoActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-    link: { color: colors.accent, fontSize: 14, fontWeight: '600' },
+    link: { ...fonts.uiSemiBold, color: colors.accent, fontSize: 14 },
     deleteBtn: { marginTop: 36, alignItems: 'center', padding: 12 },
-    deleteText: { color: colors.danger, fontSize: 15 },
+    deleteText: { ...fonts.ui, color: colors.danger, fontSize: 15 },
   }),
 );

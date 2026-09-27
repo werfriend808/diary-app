@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { humanSpan, longDate, toKey } from '../dates';
-import { makeStyles, serif } from '../theme';
+import { makeStyles, TYPE } from '../theme';
 import { Letter } from '../types';
 
 export default function LetterReaderScreen({ letter, onClose }: { letter: Letter; onClose: () => void }) {
@@ -44,7 +44,7 @@ export default function LetterReaderScreen({ letter, onClose }: { letter: Letter
   );
 }
 
-const useStyles = makeStyles(({ colors, paper }) =>
+const useStyles = makeStyles(({ colors, paper, fonts, korean }) =>
   StyleSheet.create({
     topBar: {
       flexDirection: 'row',
@@ -55,14 +55,14 @@ const useStyles = makeStyles(({ colors, paper }) =>
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.line,
     },
-    topBtn: { fontSize: 16, color: colors.accent },
-    topTitle: { fontSize: 16, fontWeight: '600', color: colors.ink },
+    topBtn: { ...fonts.ui, fontSize: 16, color: colors.accent },
+    topTitle: { ...fonts.uiSemiBold, ...(korean ? TYPE.screenTitle : { fontSize: 16 }), color: colors.ink },
     content: { padding: 16, paddingBottom: 60 },
     meta: {
+      ...fonts.uiBold,
       fontSize: 12,
       letterSpacing: 1.5,
       color: colors.accent,
-      fontWeight: '700',
       textTransform: 'uppercase',
       textAlign: 'center',
       marginVertical: 8,
@@ -75,9 +75,9 @@ const useStyles = makeStyles(({ colors, paper }) =>
       borderRadius: 6,
       padding: 22,
     },
-    date: { fontFamily: serif, fontSize: 14, color: paper.faded, textAlign: 'right', marginBottom: 16 },
-    salutation: { fontFamily: serif, fontStyle: 'italic', fontSize: 19, color: paper.ink, marginBottom: 12 },
-    body: { fontFamily: serif, fontSize: 17, lineHeight: 27, color: paper.ink },
-    footer: { marginTop: 16, fontSize: 12, color: colors.muted, textAlign: 'center' },
+    date: { ...(korean ? fonts.ui : fonts.body), fontSize: 14, color: paper.faded, textAlign: 'right', marginBottom: 16 },
+    salutation: { ...fonts.body, ...fonts.italic, fontSize: 19, color: paper.ink, marginBottom: 12 },
+    body: { ...fonts.body, ...(korean ? TYPE.entryBody : { fontSize: 17, lineHeight: 27 }), color: paper.ink },
+    footer: { ...fonts.ui, marginTop: 16, fontSize: 12, color: colors.muted, textAlign: 'center' },
   }),
 );

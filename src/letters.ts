@@ -36,6 +36,15 @@ export function periodUnlock(today: string, p: Period): number {
   return unlockTime({ opensOn: day });
 }
 
+/**
+ * The period a letter was sealed for ("1y" …), or null for a custom date and time. Letters don't store
+ * the choice, so it's recognised from when the letter was written and when it opens.
+ */
+export function sealedPeriod(l: Letter): PeriodKey | null {
+  const at = unlockTime(l);
+  return PERIODS.find((p) => periodUnlock(l.writtenOn, p) === at)?.key ?? null;
+}
+
 // ---- a custom date and time ----
 
 /** A custom time must be at least this far ahead, so the letter is really sealed for a while. */

@@ -154,7 +154,17 @@
     "nothingTitle": "Nothing to save",
     "nothingBody": "Write something or add a photo first.",
     "deleteTitle": "Delete entry?",
-    "deleteBody": "This cannot be undone."
+    "deleteBody": "This cannot be undone.",
+    "placeLabel": "Place",
+    "placePlaceholder": "Where were you? (optional)",
+    "useCurrentLocation": "Use current location",
+    "locating": "Finding your location…",
+    "placeNote": {
+      "unavailable": "Current location isn’t available here. You can type the place instead.",
+      "denied": "Location access is off. You can type the place instead.",
+      "servicesOff": "Location services are turned off. You can type the place instead.",
+      "notFound": "Couldn’t find a place name. You can type it instead."
+    }
   },
   "composer": {
     "title": "Letter to future you",
@@ -188,6 +198,8 @@
     "write": "Write a letter to future you",
     "ready": "Ready to open",
     "sealed": "Sealed",
+    "sealedTitle": "To me in {{period}}",
+    "sealedTitleCustom": "To my future self",
     "opened": "Opened",
     "from": "From {{date}}",
     "readySub": "Written {{span}} ago · tap to open",
@@ -234,7 +246,19 @@
     "restore": "Restore from a backup",
     "restoreSub": "Adds entries and letters from a backup file. Nothing you have now is deleted.",
     "backupWarning": "The backup file isn’t encrypted, and it includes your sealed letters. Keep it somewhere private.",
-    "footer": "No account. No ads. Your words never leave this phone unless you save a backup."
+    "footer": "No account. No ads. Your words never leave this phone unless you save a backup.",
+    "licenses": "Open-source licenses",
+    "licensesSub": "The fonts used in this app and their licenses."
+  },
+  "licenses": {
+    "title": "Open-source licenses",
+    "intro": "This app uses these fonts under the SIL Open Font License, Version 1.1.",
+    "gowunBatang": "Gowun Batang",
+    "pretendard": "Pretendard",
+    "nanumPenScript": "Nanum Pen Script",
+    "license": "SIL Open Font License 1.1",
+    "showText": "Show full license",
+    "hideText": "Hide license"
   },
   "backup": {
     "exportFailed": "Couldn’t save the backup",

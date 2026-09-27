@@ -143,7 +143,17 @@
     "nothingTitle": "저장할 내용이 없어요",
     "nothingBody": "먼저 글을 쓰거나 사진을 추가해 주세요.",
     "deleteTitle": "일기를 삭제할까요?",
-    "deleteBody": "삭제하면 되돌릴 수 없어요."
+    "deleteBody": "삭제하면 되돌릴 수 없어요.",
+    "placeLabel": "장소",
+    "placePlaceholder": "어디에서 썼나요? (선택)",
+    "useCurrentLocation": "현재 위치로 채우기",
+    "locating": "위치를 찾는 중…",
+    "placeNote": {
+      "unavailable": "여기서는 현재 위치를 쓸 수 없어요. 장소를 직접 입력해 주세요.",
+      "denied": "위치 권한이 꺼져 있어요. 장소를 직접 입력해 주세요.",
+      "servicesOff": "위치 서비스가 꺼져 있어요. 장소를 직접 입력해 주세요.",
+      "notFound": "장소 이름을 찾지 못했어요. 직접 입력해 주세요."
+    }
   },
   "composer": {
     "title": "미래의 나에게",
@@ -177,6 +187,8 @@
     "write": "미래의 나에게 편지 쓰기",
     "ready": "열어 볼 수 있는 편지",
     "sealed": "봉인된 편지",
+    "sealedTitle": "{{period}} 뒤의 나에게",
+    "sealedTitleCustom": "미래의 나에게",
     "opened": "열어 본 편지",
     "from": "{{date}}에 쓴 편지",
     "readySub": "{{span}} 전에 썼어요 · 눌러서 열어 보세요",
@@ -223,7 +235,19 @@
     "restore": "백업에서 복원",
     "restoreSub": "백업 파일의 일기와 편지를 추가해요. 지금 있는 내용은 지워지지 않아요.",
     "backupWarning": "백업 파일은 암호화되지 않고 봉인된 편지도 들어 있어요. 나만 볼 수 있는 곳에 보관해 주세요.",
-    "footer": "계정도 광고도 없어요. 백업을 저장하지 않는 한 내 글은 이 휴대폰 밖으로 나가지 않아요."
+    "footer": "계정도 광고도 없어요. 백업을 저장하지 않는 한 내 글은 이 휴대폰 밖으로 나가지 않아요.",
+    "licenses": "오픈소스 라이선스",
+    "licensesSub": "앱에서 사용하는 글꼴과 라이선스를 볼 수 있어요."
+  },
+  "licenses": {
+    "title": "오픈소스 라이선스",
+    "intro": "이 앱은 아래 글꼴을 SIL 오픈 폰트 라이선스 1.1에 따라 사용해요.",
+    "gowunBatang": "고운바탕",
+    "pretendard": "프리텐다드",
+    "nanumPenScript": "나눔손글씨 펜",
+    "license": "SIL 오픈 폰트 라이선스 1.1",
+    "showText": "라이선스 전문 보기",
+    "hideText": "접기"
   },
   "backup": {
     "exportFailed": "백업을 저장하지 못했어요",

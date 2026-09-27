@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   Alert,
   BackHandler,
@@ -22,7 +22,7 @@ import {
   PERIODS,
   periodUnlock,
 } from '../letters';
-import { makeStyles, serif, useTheme } from '../theme';
+import { makeStyles, TYPE, useTheme } from '../theme';
 
 const CUSTOM = 'custom';
 /**
@@ -45,7 +45,7 @@ export default function LetterComposerScreen({
   onSeal: (body: string, opensAt: number) => void;
   onClose: () => void;
 }) {
-  const { colors, paper, isDark } = useTheme();
+  const { colors, paper, isDark, fonts } = useTheme();
   const styles = useStyles();
   const { t, i18n } = useTranslation();
   const choices = [
@@ -58,6 +58,11 @@ export default function LetterComposerScreen({
   const [customAt, setCustomAt] = useState<number | null>(null);
   // When the custom picker was opened; its earliest/latest limits are counted from here.
   const [pickerOpenedAt, setPickerOpenedAt] = useState(0);
+
+  // The letter grows as it's written, and the line being typed would slide under the keyboard. While the
+  // cursor is at the end, follow it down; when it's somewhere in the middle, leave the scroll alone.
+  const scrollRef = useRef<ScrollView>(null);
+  const cursorAtEnd = useRef(true);
 
   const period = PERIODS.find((p) => p.key === choice);
   // null for the dev option, which is counted from the moment of sealing.
@@ -155,18 +160,20 @@ export default function LetterComposerScreen({
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    // 'padding' on Android too, as in the entry editor: apps are always edge-to-edge now, so the window
+    // no longer shrinks for the keyboard by itself.
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
       <View style={styles.topBar}>
         <Pressable onPress={requestClose} hitSlop={10}>
           <Text style={styles.topBtn}>{t('common.cancel')}</Text>
         </Pressable>
         <Text style={styles.topTitle}>{t('composer.title')}</Text>
         <Pressable onPress={seal} hitSlop={10}>
-          <Text style={[styles.topBtn, { fontWeight: '700' }]}>{t('composer.seal')}</Text>
+          <Text style={[styles.topBtn, fonts.uiBold]}>{t('composer.seal')}</Text>
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>{t('composer.openIn')}</Text>
         <View style={styles.chips}>
           {choices.map((o) => {
@@ -214,6 +221,12 @@ export default function LetterComposerScreen({
             placeholderTextColor={paper.faded}
             value={body}
             onChangeText={setBody}
+            onSelectionChange={(e) => {
+              cursorAtEnd.current = e.nativeEvent.selection.end >= body.length;
+            }}
+            onContentSizeChange={() => {
+              if (cursorAtEnd.current) scrollRef.current?.scrollToEnd({ animated: true });
+            }}
             multiline
             textAlignVertical="top"
             autoFocus
@@ -224,7 +237,7 @@ export default function LetterComposerScreen({
   );
 }
 
-const useStyles = makeStyles(({ colors, paper }) =>
+const useStyles = makeStyles(({ colors, paper, fonts, korean }) =>
   StyleSheet.create({
     topBar: {
       flexDirection: 'row',
@@ -235,10 +248,10 @@ const useStyles = makeStyles(({ colors, paper }) =>
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.line,
     },
-    topBtn: { fontSize: 16, color: colors.accent },
-    topTitle: { fontSize: 16, fontWeight: '600', color: colors.ink },
+    topBtn: { ...fonts.ui, fontSize: 16, color: colors.accent },
+    topTitle: { ...fonts.uiSemiBold, ...(korean ? TYPE.screenTitle : { fontSize: 16 }), color: colors.ink },
     content: { padding: 16, paddingBottom: 60 },
-    label: { fontSize: 13, color: colors.muted, marginBottom: 8 },
+    label: { ...fonts.ui, fontSize: 13, color: colors.muted, marginBottom: 8 },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: {
       paddingHorizontal: 14,
@@ -249,9 +262,9 @@ const useStyles = makeStyles(({ colors, paper }) =>
       backgroundColor: colors.card,
     },
     chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-    chipText: { fontSize: 14, color: colors.ink },
-    chipTextActive: { color: '#fff', fontWeight: '600' },
-    opensOn: { marginTop: 10, fontSize: 13, color: colors.muted },
+    chipText: { ...fonts.ui, fontSize: 14, color: colors.ink },
+    chipTextActive: { ...fonts.uiSemiBold, color: '#fff' },
+    opensOn: { ...fonts.ui, marginTop: 10, fontSize: 13, color: colors.muted },
     pickerRow: { marginTop: 12, flexDirection: 'row' },
     paper: {
       marginTop: 20,
@@ -262,7 +275,13 @@ const useStyles = makeStyles(({ colors, paper }) =>
       padding: 18,
       minHeight: 320,
     },
-    salutation: { fontFamily: serif, fontStyle: 'italic', fontSize: 18, color: paper.ink, marginBottom: 10 },
-    body: { fontFamily: serif, fontSize: 16, lineHeight: 25, color: paper.ink, minHeight: 240 },
+    salutation: { ...fonts.body, ...fonts.italic, fontSize: 18, color: paper.ink, marginBottom: 10 },
+    // Written in the same font, size and spacing as it will be read in.
+    body: {
+      ...fonts.body,
+      ...(korean ? TYPE.entryBody : { fontSize: 16, lineHeight: 25 }),
+      color: paper.ink,
+      minHeight: 240,
+    },
   }),
 );

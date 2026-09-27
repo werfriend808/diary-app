@@ -1,6 +1,7 @@
 {
   "ios": {
     "NSPhotoLibraryUsageDescription": "My Diary uses your photos so you can attach them to diary entries.",
-    "NSFaceIDUsageDescription": "My Diary uses Face ID so only you can open your diary."
+    "NSFaceIDUsageDescription": "My Diary uses Face ID so only you can open your diary.",
+    "NSLocationWhenInUseUsageDescription": "My Diary uses your location only when you tap “Use current location”, to add a place name to an entry. Coordinates are never saved."
   }
 }

@@ -19,7 +19,7 @@ export default function CalendarScreen({
   selected: string;
   onSelect: (dateKey: string) => void;
 }) {
-  const { colors } = useTheme();
+  const { colors, fonts } = useTheme();
   const styles = useStyles();
   const { t } = useTranslation();
   const [month, setMonth] = useState(() => {
@@ -87,8 +87,8 @@ export default function CalendarScreen({
                   <Text
                     style={[
                       styles.dayNum,
-                      isToday && !isSel && { color: colors.accent, fontWeight: '700' },
-                      isSel && { color: '#fff', fontWeight: '700' },
+                      isToday && !isSel && { ...fonts.uiBold, color: colors.accent },
+                      isSel && { ...fonts.uiBold, color: '#fff' },
                     ]}
                   >
                     {Number(key.slice(8))}
@@ -111,7 +111,7 @@ export default function CalendarScreen({
   );
 }
 
-const useStyles = makeStyles(({ colors }) =>
+const useStyles = makeStyles(({ colors, fonts }) =>
   StyleSheet.create({
     container: { padding: 16, paddingBottom: 110 },
     calendar: {
@@ -129,12 +129,13 @@ const useStyles = makeStyles(({ colors }) =>
       marginBottom: 8,
     },
     arrow: { fontSize: 30, color: colors.accent, paddingHorizontal: 8 },
-    monthTitle: { fontSize: 17, fontWeight: '700', color: colors.ink },
+    monthTitle: { ...fonts.uiBold, fontSize: 17, color: colors.ink },
     row: { flexDirection: 'row' },
     weekLabel: {
       width: `${100 / 7}%`,
       textAlign: 'center',
       color: colors.muted,
+      ...fonts.ui,
       fontSize: 12,
       marginBottom: 4,
     },
@@ -142,9 +143,9 @@ const useStyles = makeStyles(({ colors }) =>
     cell: { width: `${100 / 7}%`, height: 46, alignItems: 'center', justifyContent: 'center' },
     dayCircle: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
     daySelected: { backgroundColor: colors.accent },
-    dayNum: { fontSize: 15, color: colors.ink },
+    dayNum: { ...fonts.ui, fontSize: 15, color: colors.ink },
     dot: { width: 6, height: 6, borderRadius: 3, marginTop: 2 },
-    dayTitle: { fontSize: 15, fontWeight: '700', color: colors.ink, marginTop: 20, marginBottom: 10 },
-    none: { color: colors.muted, fontSize: 14 },
+    dayTitle: { ...fonts.uiBold, fontSize: 15, color: colors.ink, marginTop: 20, marginBottom: 10 },
+    none: { ...fonts.ui, color: colors.muted, fontSize: 14 },
   }),
 );
