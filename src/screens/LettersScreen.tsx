@@ -1,25 +1,32 @@
 import { ReactNode } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { daysBetween, humanSpan, mediumDate } from '../dates';
+import { humanSpan, mediumDate, mediumDateTime, untilLabel } from '../dates';
+import { isUnlocked, unlockTime } from '../letters';
 import { makeStyles, serif } from '../theme';
 import { Letter } from '../types';
 
 export default function LettersScreen({
   letters,
   today,
+  now,
+  notificationsOff,
   onWrite,
   onOpen,
   onDelete,
 }: {
   letters: Letter[];
   today: string;
+  /** The moment letters are checked against — App refreshes it when the next letter opens. */
+  now: number;
+  /** Notification permission was turned down, so opening letters can't send a notification. */
+  notificationsOff: boolean;
   onWrite: () => void;
   onOpen: (l: Letter) => void;
   onDelete: (id: string) => void;
 }) {
   const styles = useStyles();
-  const ready = letters.filter((l) => !l.openedAt && l.opensOn <= today).sort(byOpensOn);
-  const sealed = letters.filter((l) => !l.openedAt && l.opensOn > today).sort(byOpensOn);
+  const ready = letters.filter((l) => !l.openedAt && isUnlocked(l, now)).sort(byUnlock);
+  const sealed = letters.filter((l) => !l.openedAt && !isUnlocked(l, now)).sort(byUnlock);
   const opened = letters.filter((l) => l.openedAt).sort((a, b) => (b.openedAt ?? 0) - (a.openedAt ?? 0));
 
   const confirmDelete = (l: Letter) =>
@@ -35,7 +42,7 @@ export default function LettersScreen({
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.intro}>
-        Write to the person you’ll be. The letter stays sealed until the day you choose.
+        Write to the person you’ll be. The letter stays sealed until the moment you choose.
       </Text>
       <Pressable onPress={onWrite} style={({ pressed }) => [styles.writeBtn, pressed && { opacity: 0.85 }]}>
         <Text style={styles.writeText}>Write a letter to future you</Text>
@@ -61,16 +68,18 @@ export default function LettersScreen({
 
       {sealed.length > 0 && (
         <Section title="Sealed">
+          {notificationsOff && (
+            <Text style={styles.notice}>Turn on notifications to be told when a letter opens.</Text>
+          )}
           {sealed.map((l) => {
-            const days = daysBetween(today, l.opensOn);
+            const at = unlockTime(l);
             return (
               <Pressable key={l.id} onLongPress={() => confirmDelete(l)} style={styles.envelope}>
                 <Text style={styles.envIcon}>🔒</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.envTitle}>Opens {mediumDate(l.opensOn)}</Text>
+                  <Text style={styles.envTitle}>Opens {mediumDateTime(at)}</Text>
                   <Text style={styles.envSub}>
-                    {days === 1 ? 'Tomorrow' : `In ${humanSpan(today, l.opensOn)}`} · written{' '}
-                    {mediumDate(l.writtenOn)}
+                    {untilLabel(now, at)} · written {mediumDate(l.writtenOn)}
                   </Text>
                 </View>
               </Pressable>
@@ -102,7 +111,7 @@ export default function LettersScreen({
   );
 }
 
-const byOpensOn = (a: Letter, b: Letter) => (a.opensOn < b.opensOn ? -1 : 1);
+const byUnlock = (a: Letter, b: Letter) => unlockTime(a) - unlockTime(b);
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   const styles = useStyles();
@@ -158,6 +167,7 @@ const useStyles = makeStyles(({ colors, paper }) =>
     },
     openedDate: { fontSize: 12, color: colors.muted, fontWeight: '600' },
     openedBody: { fontFamily: serif, fontSize: 15, lineHeight: 22, color: colors.ink, marginTop: 6 },
+    notice: { fontSize: 13, lineHeight: 18, color: colors.muted, marginBottom: 10 },
     tip: { marginTop: 20, fontSize: 12, color: colors.muted, textAlign: 'center' },
   }),
 );

@@ -35,7 +35,8 @@
           "faceIDPermission": "My Diary uses Face ID so only you can open your diary."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "@react-native-community/datetimepicker"
     ]
   }
 }

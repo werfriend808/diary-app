@@ -62,12 +62,38 @@ export const mediumDate = (key: string) => {
   return `${MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}, ${d.getFullYear()}`;
 };
 
+const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+
 /** "3 days", "5 months", "1 year" — rough human distance between two days. */
 export const humanSpan = (a: string, b: string) => {
   const days = Math.abs(daysBetween(a, b));
-  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
   if (days < 14) return plural(days, 'day');
   if (days < 60) return plural(Math.round(days / 7), 'week');
   if (days < 365) return plural(Math.round(days / 30.4), 'month');
   return plural(Math.floor(days / 365), 'year');
+};
+
+// ---- moments (a timestamp in ms, for things that happen at a time of day, like a letter opening) ----
+
+/** "10:00 PM" */
+export const clockTime = (ms: number) => {
+  const d = new Date(ms);
+  const h = d.getHours();
+  return `${h % 12 || 12}:${pad(d.getMinutes())} ${h < 12 ? 'AM' : 'PM'}`;
+};
+
+/** "Friday, March 5, 2027 at 10:00 PM" */
+export const longDateTime = (ms: number) => `${longDate(toKey(new Date(ms)))} at ${clockTime(ms)}`;
+
+/** "Mar 5, 2027 · 10:00 PM" */
+export const mediumDateTime = (ms: number) => `${mediumDate(toKey(new Date(ms)))} · ${clockTime(ms)}`;
+
+/** "In 25 minutes", "In 3 hours", "Tomorrow", "In 2 weeks" — how long until a future moment. */
+export const untilLabel = (now: number, ms: number) => {
+  const minutes = Math.max(1, Math.ceil((ms - now) / 60_000));
+  if (minutes < 60) return `In ${plural(minutes, 'minute')}`;
+  if (minutes < 24 * 60) return `In ${plural(Math.round(minutes / 60), 'hour')}`;
+  const today = toKey(new Date(now));
+  const day = toKey(new Date(ms));
+  return daysBetween(today, day) === 1 ? 'Tomorrow' : `In ${humanSpan(today, day)}`;
 };

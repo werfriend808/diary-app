@@ -21,6 +21,7 @@ export function deletedLetter(l: Letter, now: number): Letter {
     body: '',
     writtenOn: l.writtenOn,
     opensOn: l.opensOn,
+    ...(l.opensAt !== undefined ? { opensAt: l.opensAt } : {}),
     createdAt: l.createdAt,
     updatedAt: now,
     deletedAt: now,

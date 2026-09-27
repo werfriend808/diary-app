@@ -27,8 +27,13 @@ export interface Letter {
   body: string;
   /** Day the letter was written, YYYY-MM-DD. */
   writtenOn: string;
-  /** Day the letter unlocks, YYYY-MM-DD. */
+  /** Day the letter unlocks, YYYY-MM-DD (the local day of opensAt). */
   opensOn: string;
+  /**
+   * Exact moment the letter unlocks, in ms. Letters sealed before this existed only have opensOn and
+   * open at 9 AM that day — always read the moment through unlockTime() in letters.ts.
+   */
+  opensAt?: number;
   /** Set the first time the letter is opened. */
   openedAt?: number;
   /** Id of the scheduled "your letter is ready" notification. */

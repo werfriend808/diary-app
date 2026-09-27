@@ -28,9 +28,11 @@ Everything stays on your phone. No account, no ads, no internet needed.
 - **On this day:** the top of the Diary tab brings back entries from one week ago, the same
   day in earlier months, and this date in earlier years. They appear as paper-style cards you
   swipe through.
-- **Letters to future you:** write a letter and seal it for 1 month, 3 months, 6 months,
-  1 year, or 3 years. You can't read it until then. On the morning it unlocks you get a
-  notification, and a banner and a dot on the Letters tab let you know.
+- **Letters to future you:** write a letter and seal it for 1 week, 1 month, 3 months,
+  6 months, 1 year, or 3 years (it opens at 9 AM that day), or pick your own date and time
+  (at least 10 minutes and at most 3 years ahead). You can't read it until then. When it
+  opens you get a notification that takes you straight to the letter, and a banner and a
+  dot on the Letters tab let you know.
 
 ### Keep it safe
 - **App lock:** Face ID, fingerprint, or your phone's passcode when the app opens (and again
@@ -42,9 +44,10 @@ Everything stays on your phone. No account, no ads, no internet needed.
 ## Tech
 
 - [Expo](https://expo.dev) SDK 57 / React Native, TypeScript
-- Entries, letters, and settings are stored on the device with AsyncStorage; photos are copied
-  into the app's private documents folder (`expo-file-system`)
+- Entries and letters are stored on the device as JSON files and photos are copied into the
+  app's private documents folder (`expo-file-system`); settings use AsyncStorage
 - `expo-local-authentication` (app lock), `expo-notifications` (local letter reminders),
+  `@react-native-community/datetimepicker` (letter date and time),
   `expo-sharing` + `expo-document-picker` (backup and restore)
 - No backend, no analytics, no network calls
 - Privacy policy draft: [`docs/privacy-policy.md`](docs/privacy-policy.md)
@@ -82,6 +85,9 @@ Expo Go limits to know about (everything works in the real store build):
 - On iPhone, Face ID doesn't work inside Expo Go, so the app lock falls back to your passcode.
 - On Android, Expo Go doesn't support notifications, so sealed letters don't send a
   "ready to open" notification. The letter still unlocks in the app.
+
+While developing, the letter composer also offers **1 minute (dev)** for trying out
+notifications quickly. It only exists when `__DEV__` is true, so store builds never show it.
 
 Type check before committing:
 
@@ -144,9 +150,11 @@ src/
   storage.ts                      Saving entries, letters, and photos
   backup.ts                       Backup file export and import
   lock.ts                         Face ID / fingerprint / passcode
-  notifications.ts                "Your letter is ready" notifications
+  letters.ts                      When a letter opens: sealing periods, custom time limits
+  notifications.ts                "Your letter is open" notifications, rescheduling, tap-to-open
+  records.ts                      What a deleted entry or letter leaves behind
   settings.ts                     Saved settings
-  dates.ts                        Date helpers
+  dates.ts                        Date and time wording
   theme.tsx                       Light and dark colors, fonts, and moods
   types.ts                        Entry and Letter types
 docs/

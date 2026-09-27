@@ -1,13 +1,21 @@
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { exportBackup, importBackup, removeOldBackupFiles } from './src/backup';
 import MemoriesSection from './src/components/MemoriesSection';
-import { todayKey } from './src/dates';
+import { todayKey, toKey } from './src/dates';
+import { isUnlocked, unlockTime } from './src/letters';
 import { RELOCK_AFTER_MS } from './src/lock';
 import { memoriesFor } from './src/memories';
-import { cancelNotification, scheduleLetterNotification } from './src/notifications';
+import {
+  cancelNotification,
+  NotificationPermission,
+  notificationPermission,
+  onLetterNotificationTap,
+  syncLetterNotifications,
+  SyncResult,
+} from './src/notifications';
 import CalendarScreen from './src/screens/CalendarScreen';
 import EditorScreen from './src/screens/EditorScreen';
 import EntryListScreen from './src/screens/EntryListScreen';
@@ -145,6 +153,9 @@ function Main({
   const [today, setToday] = useState(todayKey());
   const [selectedDay, setSelectedDay] = useState(today);
   const [overlay, setOverlay] = useState<Overlay>(null);
+  // The moment letters are checked against (they open at an exact time, not just on a day).
+  const [now, setNow] = useState(() => Date.now());
+  const [notifyPermission, setNotifyPermission] = useState<NotificationPermission>('undetermined');
 
   // When the app comes back: refresh "today" (it may be past midnight), and re-lock if it was away a while.
   const backgroundedAt = useRef<number | null>(null);
@@ -161,6 +172,8 @@ function Main({
       } else if (state === 'active') {
         setCovered(false);
         setToday(todayKey());
+        setNow(Date.now());
+        onForeground();
         const away = backgroundedAt.current ? Date.now() - backgroundedAt.current : 0;
         backgroundedAt.current = null;
         if (lockOn.current && away > RELOCK_AFTER_MS) {
@@ -188,7 +201,20 @@ function Main({
     [entries],
   );
   const memories = useMemo(() => memoriesFor(entries, today), [entries, today]);
-  const readyLetters = letters.filter((l) => !l.openedAt && l.opensOn <= today).length;
+  const readyLetters = letters.filter((l) => !l.openedAt && isUnlocked(l, now)).length;
+
+  // Tick `now` forward when the next sealed letter opens, so it shows up as ready without a restart.
+  const nextUnlock = useMemo(() => {
+    const upcoming = letters.filter((l) => !l.openedAt).map(unlockTime).filter((t) => t > now);
+    return upcoming.length > 0 ? Math.min(...upcoming) : null;
+  }, [letters, now]);
+  useEffect(() => {
+    if (nextUnlock === null) return;
+    // setTimeout can't wait longer than ~24 days; for later letters it just ticks early and re-arms.
+    const delay = Math.min(Math.max(nextUnlock - Date.now() + 500, 0), 2_000_000_000);
+    const timer = setTimeout(() => setNow(Date.now()), delay);
+    return () => clearTimeout(timer);
+  }, [nextUnlock]);
 
   // ---- entries ----
   const commitEntries = (next: Entry[]) => {
@@ -232,29 +258,69 @@ function Main({
     saveLetters(next).catch(warnSaveFailed);
   };
 
-  /** Records a scheduled notification on its letter — or cancels it if the letter was deleted meanwhile. */
-  const attachNotification = (letterId: string, notificationId: string | undefined) => {
-    if (!notificationId) return;
+  /**
+   * Stores the result of a notification sync: each upcoming letter's notification id (or none), and the
+   * permission. A letter deleted or opened while the sync ran gets its fresh notification cancelled.
+   */
+  const applySync = ({ permission, ids }: SyncResult) => {
+    setNotifyPermission(permission);
     const current = lettersRef.current;
-    if (!current.some((l) => l.id === letterId && isLive(l))) {
-      cancelNotification(notificationId);
-      return;
+    let changed = false;
+    const next = current.map((l) => {
+      const id = isLive(l) && !l.openedAt ? ids.get(l.id) : undefined;
+      if (l.notificationId === id) return l;
+      changed = true;
+      const { notificationId, ...rest } = l;
+      return id ? { ...rest, notificationId: id } : rest;
+    });
+    for (const [letterId, id] of ids) {
+      const l = current.find((x) => x.id === letterId);
+      if (!l || !isLive(l) || l.openedAt) cancelNotification(id);
     }
-    commitLetters(current.map((l) => (l.id === letterId ? { ...l, notificationId } : l)));
+    if (changed) commitLetters(next);
   };
 
-  const sealLetter = async (body: string, opensOn: string) => {
+  /** Re-schedules notifications for the (up to 50) soonest letters still to open. */
+  const syncNotifications = async (askPermission: boolean) =>
+    applySync(await syncLetterNotifications(lettersRef.current, { askPermission }));
+
+  // At app start: schedule the soonest letters again (fills the 50 slots as earlier letters open, and
+  // replaces anything left from before). Never asks for permission here.
+  const syncAtLaunch = useEffectEvent(() => {
+    syncNotifications(false);
+  });
+  useEffect(() => syncAtLaunch(), []);
+
+  // Back from the background: if notifications were switched on or off in the phone's settings, resync.
+  const onForeground = useEffectEvent(async () => {
+    if ((await notificationPermission()) !== notifyPermission) syncNotifications(false);
+  });
+
+  // Tapping a letter's notification opens that letter.
+  const openFromNotification = useEffectEvent((letterId: string) => {
+    // Don't throw away an entry or letter that's being written; the letter waits on the Letters tab.
+    if (overlay?.kind === 'entry' || overlay?.kind === 'compose') return;
+    setNow(Date.now());
+    setTab('letters');
+    const letter = lettersRef.current.find((l) => l.id === letterId && isLive(l));
+    if (letter && isUnlocked(letter, Date.now())) openLetter(letter);
+  });
+  useEffect(() => onLetterNotificationTap((id) => openFromNotification(id)), []);
+
+  const sealLetter = async (body: string, opensAt: number) => {
     const now = Date.now();
-    const letter: Letter = { id: newId(), body, writtenOn: today, opensOn, createdAt: now, updatedAt: now };
+    const opensOn = toKey(new Date(opensAt));
+    const letter: Letter = { id: newId(), body, writtenOn: today, opensOn, opensAt, createdAt: now, updatedAt: now };
     commitLetters([...allLetters, letter]);
     setOverlay(null);
     setTab('letters');
     // Ask for notification permission after sealing, so the prompt makes sense in context.
-    attachNotification(letter.id, await scheduleLetterNotification(letter));
+    // If it's turned down the letter is still sealed; the Letters screen shows a short hint.
+    await syncNotifications(true);
   };
 
   const openLetter = (letter: Letter) => {
-    if (letter.opensOn > today) return; // still sealed
+    if (!isUnlocked(letter, Date.now())) return; // still sealed
     let shown = letter;
     if (!letter.openedAt) {
       const now = Date.now();
@@ -287,13 +353,8 @@ function Main({
       if (!result) return;
       commitEntries(result.entries);
       commitLetters(result.letters);
-      // Imported sealed letters (new, or restored over a deleted one) get their own unlock
-      // notifications on this phone. One at a time, so the permission prompt appears at most once.
-      const known = new Set(letters.map((l) => l.id));
-      for (const l of result.letters) {
-        if (known.has(l.id) || l.openedAt || !isLive(l)) continue;
-        attachNotification(l.id, await scheduleLetterNotification(l));
-      }
+      // Re-schedule every letter still to open, including the imported ones, without duplicates.
+      await syncNotifications(true);
       const summary =
         result.addedEntries + result.addedLetters === 0
           ? 'Everything in that backup is already in your diary.'
@@ -401,6 +462,8 @@ function Main({
                 <LettersScreen
                   letters={letters}
                   today={today}
+                  now={now}
+                  notificationsOff={notifyPermission === 'denied'}
                   onWrite={() => setOverlay({ kind: 'compose' })}
                   onOpen={openLetter}
                   onDelete={deleteLetter}
@@ -420,7 +483,14 @@ function Main({
 
             <View style={styles.tabBar}>
               {TABS.map((t) => (
-                <Pressable key={t.key} style={styles.tab} onPress={() => setTab(t.key)}>
+                <Pressable
+                  key={t.key}
+                  style={styles.tab}
+                  onPress={() => {
+                    setTab(t.key);
+                    setNow(Date.now()); // fresh countdowns on the Letters tab
+                  }}
+                >
                   <View>
                     <Text style={styles.tabIcon}>{t.icon}</Text>
                     {t.key === 'letters' && readyLetters > 0 && <View style={styles.badge} />}
