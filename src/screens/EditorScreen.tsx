@@ -16,7 +16,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { longDate, shiftDay, todayKey } from '../dates';
 import { deletePhoto, persistPhoto, photoUrl } from '../storage';
-import { MOODS, makeStyles, useTheme } from '../theme';
+import { MOODS, makeStyles, TYPE, useTheme } from '../theme';
 import { Entry, MoodKey } from '../types';
 
 export default function EditorScreen({
@@ -32,7 +32,7 @@ export default function EditorScreen({
   onDelete: (id: string) => void;
   onClose: () => void;
 }) {
-  const { colors } = useTheme();
+  const { colors, fonts } = useTheme();
   const styles = useStyles();
   const { t } = useTranslation();
   const [date, setDate] = useState(original.date);
@@ -160,7 +160,7 @@ export default function EditorScreen({
                 style={[styles.moodBtn, active && { backgroundColor: m.color + '33', borderColor: m.color }]}
               >
                 <Text style={styles.moodEmoji}>{m.emoji}</Text>
-                <Text style={[styles.moodLabel, active && { color: colors.ink, fontWeight: '600' }]}>
+                <Text style={[styles.moodLabel, active && { ...fonts.uiSemiBold, color: colors.ink }]}>
                   {t(`moods.${m.key}`)}
                 </Text>
               </Pressable>
@@ -214,7 +214,7 @@ export default function EditorScreen({
   );
 }
 
-const useStyles = makeStyles(({ colors }) =>
+const useStyles = makeStyles(({ colors, fonts, korean }) =>
   StyleSheet.create({
     topBar: {
       flexDirection: 'row',
@@ -225,9 +225,9 @@ const useStyles = makeStyles(({ colors }) =>
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.line,
     },
-    topBtn: { fontSize: 16, color: colors.accent },
-    saveBtn: { fontWeight: '700' },
-    topTitle: { fontSize: 16, fontWeight: '600', color: colors.ink },
+    topBtn: { ...fonts.ui, fontSize: 16, color: colors.accent },
+    saveBtn: { ...fonts.uiBold },
+    topTitle: { ...fonts.uiSemiBold, ...(korean ? TYPE.screenTitle : { fontSize: 16 }), color: colors.ink },
     content: { padding: 16, paddingBottom: 60 },
     dateRow: {
       flexDirection: 'row',
@@ -236,8 +236,8 @@ const useStyles = makeStyles(({ colors }) =>
       marginBottom: 18,
     },
     dateArrow: { fontSize: 28, color: colors.accent, paddingHorizontal: 10 },
-    dateText: { fontSize: 15, fontWeight: '600', color: colors.ink },
-    label: { fontSize: 13, color: colors.muted, marginBottom: 8 },
+    dateText: { ...fonts.uiSemiBold, fontSize: 15, color: colors.ink },
+    label: { ...fonts.ui, fontSize: 13, color: colors.muted, marginBottom: 8 },
     moodRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
     moodBtn: {
       flex: 1,
@@ -249,17 +249,21 @@ const useStyles = makeStyles(({ colors }) =>
       borderColor: 'transparent',
     },
     moodEmoji: { fontSize: 26 },
-    moodLabel: { fontSize: 11, color: colors.muted, marginTop: 2 },
+    moodLabel: { ...fonts.ui, fontSize: 11, color: colors.muted, marginTop: 2 },
+    // Writing looks exactly like reading: same font, size and line spacing as the entry is shown with.
     title: {
-      fontSize: 22,
-      fontWeight: '700',
+      ...(korean ? { ...fonts.bodyBold, ...TYPE.entryTitle } : { ...fonts.uiBold, fontSize: 22 }),
       color: colors.ink,
       paddingVertical: 8,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: colors.line,
       marginBottom: 12,
     },
-    body: { fontSize: 16, lineHeight: 24, color: colors.ink, minHeight: 180 },
+    body: {
+      ...(korean ? { ...fonts.body, ...TYPE.entryBody } : { fontSize: 16, lineHeight: 24 }),
+      color: colors.ink,
+      minHeight: 180,
+    },
     addPhoto: {
       marginTop: 16,
       borderWidth: 1.5,
@@ -269,11 +273,11 @@ const useStyles = makeStyles(({ colors }) =>
       paddingVertical: 22,
       alignItems: 'center',
     },
-    addPhotoText: { color: colors.muted, fontSize: 15 },
+    addPhotoText: { ...fonts.ui, color: colors.muted, fontSize: 15 },
     photo: { marginTop: 16, width: '100%', aspectRatio: 4 / 3, borderRadius: 14 },
     photoActions: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
-    link: { color: colors.accent, fontSize: 14, fontWeight: '600' },
+    link: { ...fonts.uiSemiBold, color: colors.accent, fontSize: 14 },
     deleteBtn: { marginTop: 36, alignItems: 'center', padding: 12 },
-    deleteText: { color: colors.danger, fontSize: 15 },
+    deleteText: { ...fonts.ui, color: colors.danger, fontSize: 15 },
   }),
 );

@@ -1,3 +1,5 @@
+import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -6,6 +8,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { exportBackup, importBackup, removeOldBackupFiles } from './src/backup';
 import MemoriesSection from './src/components/MemoriesSection';
 import { todayKey, toKey } from './src/dates';
+import { FONT_FILES } from './src/fonts';
 import { applyLanguage, resolveLanguage, t } from './src/i18n';
 import { isUnlocked, unlockTime } from './src/letters';
 import { RELOCK_AFTER_MS } from './src/lock';
@@ -24,6 +27,7 @@ import EntryListScreen from './src/screens/EntryListScreen';
 import LetterComposerScreen from './src/screens/LetterComposerScreen';
 import LetterReaderScreen from './src/screens/LetterReaderScreen';
 import LettersScreen from './src/screens/LettersScreen';
+import LicensesScreen from './src/screens/LicensesScreen';
 import LockScreen from './src/screens/LockScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { loadSettings, saveSettings, Settings } from './src/settings';
@@ -40,6 +44,7 @@ type Overlay =
   | { kind: 'compose' }
   | { kind: 'letter'; letter: Letter }
   | { kind: 'settings' }
+  | { kind: 'licenses' }
   | null;
 
 const TABS = [
@@ -53,11 +58,28 @@ interface Data {
   letters: Letter[];
 }
 
+// Keep the splash screen up until the fonts are ready, so text never appears in one font and then jumps.
+SplashScreen.preventAutoHideAsync().catch(() => undefined);
+/** If the fonts take longer than this, open with the system fonts (they switch over once they arrive). */
+const FONT_WAIT_MS = 4000;
+
 /** Loads everything once, then renders the app inside the chosen theme. */
 export default function App() {
   const [data, setData] = useState<Data | null>(null);
   const [settings, setSettings] = useState<Settings | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+
+  // A font that fails to load must never stop the app: it then opens with the system fonts.
+  const [fontsLoaded, fontError] = useFonts(FONT_FILES);
+  const [fontWaitOver, setFontWaitOver] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setFontWaitOver(true), FONT_WAIT_MS);
+    return () => clearTimeout(timer);
+  }, []);
+  const fontsSettled = fontsLoaded || !!fontError || fontWaitOver;
+  useEffect(() => {
+    if (fontsSettled) SplashScreen.hideAsync().catch(() => undefined);
+  }, [fontsSettled]);
 
   // If the diary can't be read, stop here: the app must not start empty and then save over it.
   const load = () => {
@@ -84,9 +106,11 @@ export default function App() {
     saveSettings(s).catch(warnSaveFailed);
   };
 
+  if (!fontsSettled) return null; // the splash screen is still showing
+
   return (
     <SafeAreaProvider>
-      <ThemeProvider pref={settings?.theme ?? 'system'}>
+      <ThemeProvider pref={settings?.theme ?? 'system'} fontsReady={fontsLoaded}>
         {data && settings ? (
           <Main initial={data} settings={settings} onChangeSettings={changeSettings} />
         ) : loadFailed ? (
@@ -113,21 +137,21 @@ function Loading() {
 }
 
 function LoadFailed({ onRetry }: { onRetry: () => void }) {
-  const { colors } = useTheme();
+  const { colors, fonts } = useTheme();
   const { t } = useTranslation();
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: colors.bg }}>
-      <Text style={{ fontSize: 20, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
+      <Text style={{ ...fonts.uiBold, fontSize: 20, color: colors.ink, textAlign: 'center' }}>
         {t('app.loadFailedTitle')}
       </Text>
-      <Text style={{ marginTop: 8, fontSize: 15, lineHeight: 21, color: colors.muted, textAlign: 'center' }}>
+      <Text style={{ ...fonts.ui, marginTop: 8, fontSize: 15, lineHeight: 21, color: colors.muted, textAlign: 'center' }}>
         {t('app.loadFailedBody')}
       </Text>
       <Pressable
         onPress={onRetry}
         style={{ marginTop: 24, backgroundColor: colors.accent, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 40 }}
       >
-        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{t('common.tryAgain')}</Text>
+        <Text style={{ ...fonts.uiBold, color: '#fff', fontSize: 16 }}>{t('common.tryAgain')}</Text>
       </Pressable>
     </View>
   );
@@ -412,9 +436,12 @@ function Main({
             onChange={onChangeSettings}
             onExport={doExport}
             onImport={doImport}
+            onOpenLicenses={() => setOverlay({ kind: 'licenses' })}
             onClose={() => setOverlay(null)}
           />
         );
+      case 'licenses':
+        return <LicensesScreen onClose={() => setOverlay({ kind: 'settings' })} />;
     }
   };
 
@@ -535,7 +562,7 @@ function Main({
   );
 }
 
-const useStyles = makeStyles(({ colors }) =>
+const useStyles = makeStyles(({ colors, fonts }) =>
   StyleSheet.create({
     root: { flex: 1, backgroundColor: colors.bg },
     header: {
@@ -547,8 +574,8 @@ const useStyles = makeStyles(({ colors }) =>
       paddingBottom: 4,
     },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-    appTitle: { fontSize: 30, fontWeight: '800', color: colors.ink },
-    count: { fontSize: 14, color: colors.muted },
+    appTitle: { ...fonts.uiHeavy, fontSize: 30, color: colors.ink },
+    count: { ...fonts.ui, fontSize: 14, color: colors.muted },
     gear: { fontSize: 24, color: colors.muted },
     fab: {
       position: 'absolute',
@@ -584,8 +611,8 @@ const useStyles = makeStyles(({ colors }) =>
       borderRadius: 5,
       backgroundColor: colors.accent,
     },
-    tabLabel: { fontSize: 12, color: colors.muted, marginTop: 2 },
-    tabActive: { color: colors.accent, fontWeight: '700' },
+    tabLabel: { ...fonts.ui, fontSize: 12, color: colors.muted, marginTop: 2 },
+    tabActive: { ...fonts.uiBold, color: colors.accent },
     cover: { backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
     coverIcon: { fontSize: 48 },
   }),

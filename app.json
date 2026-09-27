@@ -40,7 +40,9 @@
       ],
       "expo-notifications",
       "@react-native-community/datetimepicker",
-      "expo-localization"
+      "expo-localization",
+      "expo-font",
+      "expo-splash-screen"
     ],
     "locales": {
       "en": "./locales/en.json",

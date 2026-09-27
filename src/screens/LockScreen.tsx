@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { unlock } from '../lock';
-import { makeStyles, serif } from '../theme';
+import { makeStyles } from '../theme';
 
 /** Covers the whole app until the user unlocks with Face ID / fingerprint / passcode. */
 export default function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
@@ -46,7 +46,7 @@ export default function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
   );
 }
 
-const useStyles = makeStyles(({ colors, paper }) =>
+const useStyles = makeStyles(({ colors, paper, fonts }) =>
   StyleSheet.create({
     wrap: {
       flex: 1,
@@ -56,8 +56,8 @@ const useStyles = makeStyles(({ colors, paper }) =>
       backgroundColor: colors.bg,
     },
     icon: { fontSize: 48, marginBottom: 16 },
-    title: { fontFamily: serif, fontSize: 24, color: paper.ink },
-    sub: { marginTop: 6, fontSize: 15, color: colors.muted },
+    title: { ...fonts.body, fontSize: 24, color: paper.ink },
+    sub: { ...fonts.ui, marginTop: 6, fontSize: 15, color: colors.muted },
     btn: {
       marginTop: 28,
       backgroundColor: colors.accent,
@@ -65,6 +65,6 @@ const useStyles = makeStyles(({ colors, paper }) =>
       paddingVertical: 14,
       paddingHorizontal: 48,
     },
-    btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    btnText: { ...fonts.uiBold, color: '#fff', fontSize: 16 },
   }),
 );

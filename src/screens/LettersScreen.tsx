@@ -2,8 +2,8 @@ import { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { humanSpan, mediumDate, mediumDateTime, untilLabel } from '../dates';
-import { isUnlocked, unlockTime } from '../letters';
-import { makeStyles, serif } from '../theme';
+import { isUnlocked, sealedPeriod, unlockTime } from '../letters';
+import { makeStyles, TYPE, useTheme } from '../theme';
 import { Letter } from '../types';
 
 export default function LettersScreen({
@@ -27,9 +27,17 @@ export default function LettersScreen({
 }) {
   const styles = useStyles();
   const { t } = useTranslation();
+  const { korean } = useTheme();
   const ready = letters.filter((l) => !l.openedAt && isUnlocked(l, now)).sort(byUnlock);
   const sealed = letters.filter((l) => !l.openedAt && !isUnlocked(l, now)).sort(byUnlock);
   const opened = letters.filter((l) => l.openedAt).sort((a, b) => (b.openedAt ?? 0) - (a.openedAt ?? 0));
+
+  const sealedTitle = (l: Letter) => {
+    const period = sealedPeriod(l);
+    return period
+      ? t('letters.sealedTitle', { period: t(`composer.periods.${period}`) })
+      : t('letters.sealedTitleCustom');
+  };
 
   const confirmDelete = (l: Letter) =>
     Alert.alert(
@@ -77,7 +85,15 @@ export default function LettersScreen({
               <Pressable key={l.id} onLongPress={() => confirmDelete(l)} style={styles.envelope}>
                 <Text style={styles.envIcon}>🔒</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.envTitle}>{t('letters.opens', { when: mediumDateTime(at) })}</Text>
+                  {korean ? (
+                    // A handwritten heading from its period ("1년 뒤의 나에게"), the opening time under it.
+                    <>
+                      <Text style={styles.sealedTitle}>{sealedTitle(l)}</Text>
+                      <Text style={styles.sealedWhen}>{t('letters.opens', { when: mediumDateTime(at) })}</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.envTitle}>{t('letters.opens', { when: mediumDateTime(at) })}</Text>
+                  )}
                   <Text style={styles.envSub}>
                     {t('letters.sealedSub', { until: untilLabel(now, at), date: mediumDate(l.writtenOn) })}
                   </Text>
@@ -123,10 +139,10 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-const useStyles = makeStyles(({ colors, paper }) =>
+const useStyles = makeStyles(({ colors, paper, fonts, korean }) =>
   StyleSheet.create({
     container: { padding: 16, paddingBottom: 60 },
-    intro: { fontFamily: serif, fontStyle: 'italic', fontSize: 16, lineHeight: 24, color: paper.ink },
+    intro: { ...fonts.body, ...fonts.italic, fontSize: 16, lineHeight: 24, color: paper.ink },
     writeBtn: {
       marginTop: 16,
       backgroundColor: colors.accent,
@@ -134,10 +150,10 @@ const useStyles = makeStyles(({ colors, paper }) =>
       paddingVertical: 14,
       alignItems: 'center',
     },
-    writeText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    writeText: { ...fonts.uiBold, color: '#fff', fontSize: 16 },
     sectionTitle: {
+      ...fonts.uiSemiBold,
       fontSize: 13,
-      fontWeight: '600',
       color: colors.muted,
       letterSpacing: 0.5,
       marginBottom: 10,
@@ -155,8 +171,11 @@ const useStyles = makeStyles(({ colors, paper }) =>
     },
     ready: { borderColor: colors.accent, backgroundColor: colors.accentSoft },
     envIcon: { fontSize: 26 },
-    envTitle: { fontFamily: serif, fontSize: 17, color: paper.ink },
-    envSub: { fontSize: 13, color: paper.faded, marginTop: 3 },
+    // In Korean the card titles are dates, so they use the UI font.
+    envTitle: { ...(korean ? { ...fonts.uiSemiBold, fontSize: 16 } : { ...fonts.body, fontSize: 17 }), color: paper.ink },
+    sealedTitle: { ...fonts.accent, ...TYPE.accentTitle, color: paper.ink },
+    sealedWhen: { ...fonts.uiMedium, fontSize: 14, color: paper.ink, marginTop: 2 },
+    envSub: { ...fonts.ui, fontSize: 13, color: paper.faded, marginTop: 3 },
     openedCard: {
       backgroundColor: colors.card,
       borderWidth: StyleSheet.hairlineWidth,
@@ -165,9 +184,14 @@ const useStyles = makeStyles(({ colors, paper }) =>
       padding: 14,
       marginBottom: 10,
     },
-    openedDate: { fontSize: 12, color: colors.muted, fontWeight: '600' },
-    openedBody: { fontFamily: serif, fontSize: 15, lineHeight: 22, color: colors.ink, marginTop: 6 },
-    notice: { fontSize: 13, lineHeight: 18, color: colors.muted, marginBottom: 10 },
-    tip: { marginTop: 20, fontSize: 12, color: colors.muted, textAlign: 'center' },
+    openedDate: { ...fonts.uiSemiBold, fontSize: 12, color: colors.muted },
+    openedBody: {
+      ...fonts.body,
+      ...(korean ? TYPE.cardBody : { fontSize: 15, lineHeight: 22 }),
+      color: colors.ink,
+      marginTop: 6,
+    },
+    notice: { ...fonts.ui, fontSize: 13, lineHeight: 18, color: colors.muted, marginBottom: 10 },
+    tip: { ...fonts.ui, marginTop: 20, fontSize: 12, color: colors.muted, textAlign: 'center' },
   }),
 );

@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { fromKey, monthShort, shortWeekday } from '../dates';
 import { photoUrl } from '../storage';
-import { makeStyles, moodOf } from '../theme';
+import { makeStyles, moodOf, TYPE } from '../theme';
 import { Entry } from '../types';
 
 export default function EntryCard({ entry, onPress }: { entry: Entry; onPress: () => void }) {
@@ -39,7 +39,7 @@ export default function EntryCard({ entry, onPress }: { entry: Entry; onPress: (
   );
 }
 
-const useStyles = makeStyles(({ colors }) =>
+const useStyles = makeStyles(({ colors, fonts, korean }) =>
   StyleSheet.create({
     card: {
       flexDirection: 'row',
@@ -53,14 +53,19 @@ const useStyles = makeStyles(({ colors }) =>
       borderColor: colors.line,
     },
     dateCol: { width: 40, alignItems: 'center' },
-    day: { fontSize: 22, fontWeight: '700', color: colors.ink },
-    weekday: { fontSize: 11, color: colors.accent, fontWeight: '600', textTransform: 'uppercase' },
-    month: { fontSize: 11, color: colors.muted },
+    day: { ...fonts.uiBold, fontSize: 22, color: colors.ink },
+    weekday: { ...fonts.uiSemiBold, fontSize: 11, color: colors.accent, textTransform: 'uppercase' },
+    month: { ...fonts.ui, fontSize: 11, color: colors.muted },
     textCol: { flex: 1 },
     titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
     mood: { fontSize: 16 },
-    title: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.ink },
-    preview: { marginTop: 4, fontSize: 14, lineHeight: 19, color: colors.muted },
+    // The entry's own words: 고운바탕 in Korean (list-sized; the full sizes are in the editor).
+    title: { flex: 1, ...(korean ? fonts.bodyBold : fonts.uiSemiBold), fontSize: 16, color: colors.ink },
+    preview: {
+      marginTop: 4,
+      ...(korean ? { ...fonts.body, ...TYPE.cardBody } : { fontSize: 14, lineHeight: 19 }),
+      color: colors.muted,
+    },
     thumb: { width: 54, height: 54, borderRadius: 10, backgroundColor: colors.line },
   }),
 );

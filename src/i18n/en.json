@@ -188,6 +188,8 @@
     "write": "Write a letter to future you",
     "ready": "Ready to open",
     "sealed": "Sealed",
+    "sealedTitle": "To me in {{period}}",
+    "sealedTitleCustom": "To my future self",
     "opened": "Opened",
     "from": "From {{date}}",
     "readySub": "Written {{span}} ago · tap to open",
@@ -234,7 +236,19 @@
     "restore": "Restore from a backup",
     "restoreSub": "Adds entries and letters from a backup file. Nothing you have now is deleted.",
     "backupWarning": "The backup file isn’t encrypted, and it includes your sealed letters. Keep it somewhere private.",
-    "footer": "No account. No ads. Your words never leave this phone unless you save a backup."
+    "footer": "No account. No ads. Your words never leave this phone unless you save a backup.",
+    "licenses": "Open-source licenses",
+    "licensesSub": "The fonts used in this app and their licenses."
+  },
+  "licenses": {
+    "title": "Open-source licenses",
+    "intro": "This app uses these fonts under the SIL Open Font License, Version 1.1.",
+    "gowunBatang": "Gowun Batang",
+    "pretendard": "Pretendard",
+    "nanumPenScript": "Nanum Pen Script",
+    "license": "SIL Open Font License 1.1",
+    "showText": "Show full license",
+    "hideText": "Hide license"
   },
   "backup": {
     "exportFailed": "Couldn’t save the backup",

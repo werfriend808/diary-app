@@ -3,7 +3,7 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, Vi
 import { longDate } from '../dates';
 import { Memory, memoryLabel } from '../memories';
 import { photoUrl } from '../storage';
-import { makeStyles, moodOf, serif } from '../theme';
+import { makeStyles, moodOf, TYPE, useTheme } from '../theme';
 import { Entry } from '../types';
 
 export default function MemoriesSection({
@@ -89,6 +89,7 @@ function MemoryCard({
 }) {
   const styles = useStyles();
   const { t } = useTranslation();
+  const { korean } = useTheme();
   const mood = moodOf(entry.mood);
   return (
     <Pressable
@@ -103,7 +104,7 @@ function MemoryCard({
         </View>
       )}
       <View style={styles.cardBody}>
-        <Text style={styles.label}>{label.toUpperCase()}</Text>
+        <Text style={styles.label}>{korean ? label : label.toUpperCase()}</Text>
         <Text style={styles.date}>
           {longDate(entry.date)} {mood ? ` ${mood.emoji}` : ''}
         </Text>
@@ -119,19 +120,19 @@ function MemoryCard({
   );
 }
 
-const useStyles = makeStyles(({ colors, paper }) =>
+const useStyles = makeStyles(({ colors, paper, fonts, korean }) =>
   StyleSheet.create({
     wrap: { marginBottom: 6 },
-    heading: { fontFamily: serif, fontSize: 20, color: paper.ink, marginBottom: 10, fontStyle: 'italic' },
+    heading: { ...fonts.body, ...fonts.italic, fontSize: 20, color: paper.ink, marginBottom: 10 },
     allHeading: {
+      ...fonts.uiSemiBold,
       fontSize: 13,
-      fontWeight: '600',
       color: colors.muted,
       marginTop: 22,
       marginBottom: 10,
       letterSpacing: 0.5,
     },
-    hint: { fontFamily: serif, fontStyle: 'italic', color: paper.faded, fontSize: 15, lineHeight: 22 },
+    hint: { ...fonts.body, ...fonts.italic, color: paper.faded, fontSize: 15, lineHeight: 22 },
     card: {
       backgroundColor: paper.bg,
       borderRadius: 6,
@@ -147,11 +148,22 @@ const useStyles = makeStyles(({ colors, paper }) =>
     photo: { width: '100%', height: 150 },
     photoWash: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(196,150,90,0.18)' },
     cardBody: { padding: 16 },
-    label: { fontSize: 11, letterSpacing: 1.5, color: colors.accent, fontWeight: '700' },
-    date: { fontFamily: serif, fontSize: 14, color: paper.faded, marginTop: 4 },
-    title: { fontFamily: serif, fontSize: 19, color: paper.ink, marginTop: 10 },
-    body: { fontFamily: serif, fontSize: 15, lineHeight: 23, color: paper.ink, marginTop: 6 },
-    readMore: { marginTop: 12, fontSize: 13, color: colors.accent, fontWeight: '600' },
+    // "1년 전" in handwriting, about 1.5× the date under it; English keeps its small caps label.
+    label: korean
+      ? { ...fonts.accent, ...TYPE.accentLabel, color: colors.accent }
+      : { ...fonts.uiBold, fontSize: 11, letterSpacing: 1.5, color: colors.accent },
+    date: { ...(korean ? fonts.ui : fonts.body), fontSize: 14, color: paper.faded, marginTop: 4 },
+    title: {
+      ...(korean ? { ...fonts.bodyBold, ...TYPE.entryTitle } : { ...fonts.body, fontSize: 19 }),
+      color: paper.ink,
+      marginTop: 10,
+    },
+    body: {
+      ...(korean ? { ...fonts.body, ...TYPE.cardBody } : { ...fonts.body, fontSize: 15, lineHeight: 23 }),
+      color: paper.ink,
+      marginTop: 6,
+    },
+    readMore: { ...fonts.uiSemiBold, marginTop: 12, fontSize: 13, color: colors.accent },
     letterBanner: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -162,8 +174,8 @@ const useStyles = makeStyles(({ colors, paper }) =>
       marginBottom: 18,
     },
     letterIcon: { fontSize: 26 },
-    letterTitle: { fontSize: 15, fontWeight: '700', color: colors.ink },
-    letterSub: { fontSize: 13, color: colors.muted, marginTop: 2 },
+    letterTitle: { ...fonts.uiBold, fontSize: 15, color: colors.ink },
+    letterSub: { ...fonts.ui, fontSize: 13, color: colors.muted, marginTop: 2 },
     chev: { fontSize: 24, color: colors.accent },
   }),
 );
