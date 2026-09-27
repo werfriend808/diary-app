@@ -13,6 +13,7 @@ export interface Memory {
  *  - same day-of-month earlier months ("3 months ago", within the last year)
  *  - exactly one week ago             ("One week ago") — gives new users an early payoff
  * Older memories come first, since they're the most nostalgic.
+ * Expects live entries only — App.tsx filters out deleted ones before anything reaches here.
  */
 export function memoriesFor(entries: Entry[], today: string): Memory[] {
   const t = fromKey(today);

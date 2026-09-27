@@ -1,5 +1,6 @@
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { fromKey, MONTHS, shortWeekday } from '../dates';
+import { photoUrl } from '../storage';
 import { makeStyles, moodOf } from '../theme';
 import { Entry } from '../types';
 
@@ -31,7 +32,7 @@ export default function EntryCard({ entry, onPress }: { entry: Entry; onPress: (
         )}
       </View>
 
-      {entry.photoUri && <Image source={{ uri: entry.photoUri }} style={styles.thumb} />}
+      {entry.photoName && <Image source={{ uri: photoUrl(entry.photoName) }} style={styles.thumb} />}
     </Pressable>
   );
 }

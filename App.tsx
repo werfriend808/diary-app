@@ -17,7 +17,8 @@ import LettersScreen from './src/screens/LettersScreen';
 import LockScreen from './src/screens/LockScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import { loadSettings, saveSettings, Settings } from './src/settings';
-import { loadEntries, loadLetters, newId, saveEntries, saveLetters } from './src/storage';
+import { deletedEntry, deletedLetter, isLive } from './src/records';
+import { deletePhoto, loadEntries, loadLetters, newId, saveEntries, saveLetters } from './src/storage';
 import { makeStyles, ThemeProvider, useTheme } from './src/theme';
 import { Entry, Letter } from './src/types';
 
@@ -133,8 +134,12 @@ function Main({
   const { isDark } = useTheme();
   const styles = useStyles();
 
-  const [entries, setEntries] = useState(initial.entries);
-  const [letters, setLetters] = useState(initial.letters);
+  // Everything stored, including deleted items (tombstones, see records.ts). Only change these here;
+  // screens get the filtered `entries` / `letters` below.
+  const [allEntries, setAllEntries] = useState(initial.entries);
+  const [allLetters, setAllLetters] = useState(initial.letters);
+  const entries = useMemo(() => allEntries.filter(isLive), [allEntries]);
+  const letters = useMemo(() => allLetters.filter(isLive), [allLetters]);
   const [locked, setLocked] = useState(settings.lock);
   const [tab, setTab] = useState<Tab>('list');
   const [today, setToday] = useState(todayKey());
@@ -187,7 +192,7 @@ function Main({
 
   // ---- entries ----
   const commitEntries = (next: Entry[]) => {
-    setEntries(next);
+    setAllEntries(next);
     saveEntries(next).catch(warnSaveFailed);
   };
 
@@ -204,23 +209,26 @@ function Main({
   const openEntry = (entry: Entry) => setOverlay({ kind: 'entry', entry, isNew: false });
 
   const saveEntry = (e: Entry) => {
-    const exists = entries.some((x) => x.id === e.id);
-    commitEntries(exists ? entries.map((x) => (x.id === e.id ? e : x)) : [e, ...entries]);
+    const exists = allEntries.some((x) => x.id === e.id);
+    commitEntries(exists ? allEntries.map((x) => (x.id === e.id ? e : x)) : [e, ...allEntries]);
     setSelectedDay(e.date);
     setOverlay(null);
   };
 
+  /** Deletes the photo file and leaves an emptied tombstone in place of the entry. */
   const deleteEntry = (id: string) => {
-    commitEntries(entries.filter((x) => x.id !== id));
+    const now = Date.now();
+    deletePhoto(allEntries.find((x) => x.id === id)?.photoName);
+    commitEntries(allEntries.map((x) => (x.id === id ? deletedEntry(x, now) : x)));
     setOverlay(null);
   };
 
   // ---- letters ----
   // Latest letters, for code that resumes after an await (the list may have changed meanwhile).
-  const lettersRef = useRef(letters);
+  const lettersRef = useRef(allLetters);
   const commitLetters = (next: Letter[]) => {
     lettersRef.current = next;
-    setLetters(next);
+    setAllLetters(next);
     saveLetters(next).catch(warnSaveFailed);
   };
 
@@ -228,7 +236,7 @@ function Main({
   const attachNotification = (letterId: string, notificationId: string | undefined) => {
     if (!notificationId) return;
     const current = lettersRef.current;
-    if (!current.some((l) => l.id === letterId)) {
+    if (!current.some((l) => l.id === letterId && isLive(l))) {
       cancelNotification(notificationId);
       return;
     }
@@ -236,8 +244,9 @@ function Main({
   };
 
   const sealLetter = async (body: string, opensOn: string) => {
-    const letter: Letter = { id: newId(), body, writtenOn: today, opensOn, createdAt: Date.now() };
-    commitLetters([...letters, letter]);
+    const now = Date.now();
+    const letter: Letter = { id: newId(), body, writtenOn: today, opensOn, createdAt: now, updatedAt: now };
+    commitLetters([...allLetters, letter]);
     setOverlay(null);
     setTab('letters');
     // Ask for notification permission after sealing, so the prompt makes sense in context.
@@ -248,21 +257,24 @@ function Main({
     if (letter.opensOn > today) return; // still sealed
     let shown = letter;
     if (!letter.openedAt) {
-      shown = { ...letter, openedAt: Date.now() };
-      commitLetters(letters.map((l) => (l.id === letter.id ? shown : l)));
+      const now = Date.now();
+      shown = { ...letter, openedAt: now, updatedAt: now };
+      commitLetters(allLetters.map((l) => (l.id === letter.id ? shown : l)));
     }
     setOverlay({ kind: 'letter', letter: shown });
   };
 
+  /** Cancels the letter's notification and leaves an emptied tombstone in its place. */
   const deleteLetter = (id: string) => {
-    cancelNotification(letters.find((l) => l.id === id)?.notificationId);
-    commitLetters(letters.filter((l) => l.id !== id));
+    const now = Date.now();
+    cancelNotification(allLetters.find((l) => l.id === id)?.notificationId);
+    commitLetters(allLetters.map((l) => (l.id === id ? deletedLetter(l, now) : l)));
   };
 
   // ---- backup ----
   const doExport = async () => {
     try {
-      await exportBackup(entries, letters);
+      await exportBackup(allEntries, allLetters); // backup.ts decides what goes in (no tombstones)
     } catch (e) {
       Alert.alert('Couldn’t save the backup', e instanceof Error ? e.message : 'Please try again.');
     }
@@ -270,15 +282,16 @@ function Main({
 
   const doImport = async () => {
     try {
-      const result = await importBackup({ entries, letters });
+      // Tombstones included, so a restored item replaces its tombstone instead of duplicating the id.
+      const result = await importBackup({ entries: allEntries, letters: allLetters });
       if (!result) return;
       commitEntries(result.entries);
       commitLetters(result.letters);
-      // Imported sealed letters get their own unlock notifications on this phone. One at a time,
-      // so the permission prompt appears at most once.
+      // Imported sealed letters (new, or restored over a deleted one) get their own unlock
+      // notifications on this phone. One at a time, so the permission prompt appears at most once.
       const known = new Set(letters.map((l) => l.id));
       for (const l of result.letters) {
-        if (known.has(l.id) || l.openedAt) continue;
+        if (known.has(l.id) || l.openedAt || !isLive(l)) continue;
         attachNotification(l.id, await scheduleLetterNotification(l));
       }
       const summary =

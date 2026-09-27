@@ -7,10 +7,19 @@ export interface Entry {
   title: string;
   body: string;
   mood?: MoodKey;
-  /** file:// URI of a photo copied into the app's private storage. */
-  photoUri?: string;
+  /**
+   * File name (not a path) of the entry's photo inside the app's photos folder, e.g. "1727312345678.jpg".
+   * Turn it into something an <Image> can show with photoUrl() from storage.ts. Only the name is stored
+   * because a full file:// path changes on another phone or after reinstalling the app.
+   */
+  photoName?: string;
   createdAt: number;
   updatedAt: number;
+  /**
+   * Set when the entry is deleted. The record is kept — emptied down to its id and timestamps — so a
+   * future sync can tell "deleted on this phone" from "not uploaded yet". Screens never show it.
+   */
+  deletedAt?: number;
 }
 
 export interface Letter {
@@ -25,4 +34,8 @@ export interface Letter {
   /** Id of the scheduled "your letter is ready" notification. */
   notificationId?: string;
   createdAt: number;
+  /** Last change: sealing, opening or deleting. */
+  updatedAt: number;
+  /** Set when the letter is deleted; kept emptied, like Entry.deletedAt. */
+  deletedAt?: number;
 }

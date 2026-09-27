@@ -1,6 +1,7 @@
 import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { longDate } from '../dates';
 import { Memory } from '../memories';
+import { photoUrl } from '../storage';
 import { makeStyles, moodOf, serif } from '../theme';
 import { Entry } from '../types';
 
@@ -93,9 +94,9 @@ function MemoryCard({
       onPress={onPress}
       style={({ pressed }) => [styles.card, { width }, pressed && { opacity: 0.85 }]}
     >
-      {entry.photoUri && (
+      {entry.photoName && (
         <View>
-          <Image source={{ uri: entry.photoUri }} style={styles.photo} />
+          <Image source={{ uri: photoUrl(entry.photoName) }} style={styles.photo} />
           {/* A warm wash over the photo so it reads like an old print. */}
           <View style={styles.photoWash} />
         </View>
@@ -107,7 +108,7 @@ function MemoryCard({
         </Text>
         {entry.title.trim().length > 0 && <Text style={styles.title}>{entry.title.trim()}</Text>}
         {entry.body.trim().length > 0 && (
-          <Text style={styles.body} numberOfLines={entry.photoUri ? 3 : 6}>
+          <Text style={styles.body} numberOfLines={entry.photoName ? 3 : 6}>
             {entry.body.trim()}
           </Text>
         )}

@@ -14,7 +14,7 @@ import {
   View,
 } from 'react-native';
 import { longDate, shiftDay, todayKey } from '../dates';
-import { deletePhoto, persistPhoto } from '../storage';
+import { deletePhoto, persistPhoto, photoUrl } from '../storage';
 import { MOODS, makeStyles, useTheme } from '../theme';
 import { Entry, MoodKey } from '../types';
 
@@ -37,10 +37,10 @@ export default function EditorScreen({
   const [title, setTitle] = useState(original.title);
   const [body, setBody] = useState(original.body);
   const [mood, setMood] = useState<MoodKey | undefined>(original.mood);
-  const [photoUri, setPhotoUri] = useState(original.photoUri);
+  const [photoName, setPhotoName] = useState(original.photoName);
   const [busy, setBusy] = useState(false);
 
-  // Photos copied during this edit that haven't been saved yet — cleaned up on cancel.
+  // File names of photos copied during this edit that haven't been saved yet — cleaned up on cancel.
   const unsavedPhotos = useRef<string[]>([]);
 
   const dirty =
@@ -48,7 +48,7 @@ export default function EditorScreen({
     title !== original.title ||
     body !== original.body ||
     mood !== original.mood ||
-    photoUri !== original.photoUri;
+    photoName !== original.photoName;
 
   const discard = () => {
     unsavedPhotos.current.forEach(deletePhoto);
@@ -84,7 +84,7 @@ export default function EditorScreen({
     try {
       const saved = await persistPhoto(result.assets[0].uri);
       unsavedPhotos.current.push(saved);
-      setPhotoUri(saved);
+      setPhotoName(saved);
     } catch {
       Alert.alert('Could not add photo', 'Please try a different image.');
     } finally {
@@ -93,15 +93,15 @@ export default function EditorScreen({
   };
 
   const save = () => {
-    if (!title.trim() && !body.trim() && !photoUri) {
+    if (!title.trim() && !body.trim() && !photoName) {
       Alert.alert('Nothing to save', 'Write something or add a photo first.');
       return;
     }
     // Remove the old photo if it was replaced/removed, plus any extra picks that weren't kept.
-    if (original.photoUri && original.photoUri !== photoUri) deletePhoto(original.photoUri);
-    unsavedPhotos.current.filter((u) => u !== photoUri).forEach(deletePhoto);
+    if (original.photoName && original.photoName !== photoName) deletePhoto(original.photoName);
+    unsavedPhotos.current.filter((n) => n !== photoName).forEach(deletePhoto);
 
-    onSave({ ...original, date, title, body, mood, photoUri, updatedAt: Date.now() });
+    onSave({ ...original, date, title, body, mood, photoName, updatedAt: Date.now() });
   };
 
   const confirmDelete = () =>
@@ -111,7 +111,7 @@ export default function EditorScreen({
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
-          deletePhoto(original.photoUri);
+          // The saved photo is deleted along with the entry (App's deleteEntry); these are unsaved picks.
           unsavedPhotos.current.forEach(deletePhoto);
           onDelete(original.id);
         },
@@ -184,14 +184,14 @@ export default function EditorScreen({
           textAlignVertical="top"
         />
 
-        {photoUri ? (
+        {photoName ? (
           <View>
-            <Image source={{ uri: photoUri }} style={styles.photo} resizeMode="cover" />
+            <Image source={{ uri: photoUrl(photoName) }} style={styles.photo} resizeMode="cover" />
             <View style={styles.photoActions}>
               <Pressable onPress={pickPhoto}>
                 <Text style={styles.link}>Change photo</Text>
               </Pressable>
-              <Pressable onPress={() => setPhotoUri(undefined)}>
+              <Pressable onPress={() => setPhotoName(undefined)}>
                 <Text style={[styles.link, { color: colors.danger }]}>Remove</Text>
               </Pressable>
             </View>
