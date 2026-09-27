@@ -154,7 +154,17 @@
     "nothingTitle": "Nothing to save",
     "nothingBody": "Write something or add a photo first.",
     "deleteTitle": "Delete entry?",
-    "deleteBody": "This cannot be undone."
+    "deleteBody": "This cannot be undone.",
+    "placeLabel": "Place",
+    "placePlaceholder": "Where were you? (optional)",
+    "useCurrentLocation": "Use current location",
+    "locating": "Finding your location…",
+    "placeNote": {
+      "unavailable": "Current location isn’t available here. You can type the place instead.",
+      "denied": "Location access is off. You can type the place instead.",
+      "servicesOff": "Location services are turned off. You can type the place instead.",
+      "notFound": "Couldn’t find a place name. You can type it instead."
+    }
   },
   "composer": {
     "title": "Letter to future you",

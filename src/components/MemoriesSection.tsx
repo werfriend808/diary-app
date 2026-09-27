@@ -108,6 +108,11 @@ function MemoryCard({
         <Text style={styles.date}>
           {longDate(entry.date)} {mood ? ` ${mood.emoji}` : ''}
         </Text>
+        {!!entry.place && (
+          <Text style={styles.place} numberOfLines={1}>
+            {entry.place}
+          </Text>
+        )}
         {entry.title.trim().length > 0 && <Text style={styles.title}>{entry.title.trim()}</Text>}
         {entry.body.trim().length > 0 && (
           <Text style={styles.body} numberOfLines={entry.photoName ? 3 : 6}>
@@ -153,6 +158,7 @@ const useStyles = makeStyles(({ colors, paper, fonts, korean }) =>
       ? { ...fonts.accent, ...TYPE.accentLabel, color: colors.accent }
       : { ...fonts.uiBold, fontSize: 11, letterSpacing: 1.5, color: colors.accent },
     date: { ...(korean ? fonts.ui : fonts.body), fontSize: 14, color: paper.faded, marginTop: 4 },
+    place: { ...fonts.ui, fontSize: 12, color: paper.faded, marginTop: 2 },
     title: {
       ...(korean ? { ...fonts.bodyBold, ...TYPE.entryTitle } : { ...fonts.body, fontSize: 19 }),
       color: paper.ink,

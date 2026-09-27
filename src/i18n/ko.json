@@ -143,7 +143,17 @@
     "nothingTitle": "저장할 내용이 없어요",
     "nothingBody": "먼저 글을 쓰거나 사진을 추가해 주세요.",
     "deleteTitle": "일기를 삭제할까요?",
-    "deleteBody": "삭제하면 되돌릴 수 없어요."
+    "deleteBody": "삭제하면 되돌릴 수 없어요.",
+    "placeLabel": "장소",
+    "placePlaceholder": "어디에서 썼나요? (선택)",
+    "useCurrentLocation": "현재 위치로 채우기",
+    "locating": "위치를 찾는 중…",
+    "placeNote": {
+      "unavailable": "여기서는 현재 위치를 쓸 수 없어요. 장소를 직접 입력해 주세요.",
+      "denied": "위치 권한이 꺼져 있어요. 장소를 직접 입력해 주세요.",
+      "servicesOff": "위치 서비스가 꺼져 있어요. 장소를 직접 입력해 주세요.",
+      "notFound": "장소 이름을 찾지 못했어요. 직접 입력해 주세요."
+    }
   },
   "composer": {
     "title": "미래의 나에게",

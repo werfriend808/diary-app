@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   Alert,
   BackHandler,
@@ -58,6 +58,11 @@ export default function LetterComposerScreen({
   const [customAt, setCustomAt] = useState<number | null>(null);
   // When the custom picker was opened; its earliest/latest limits are counted from here.
   const [pickerOpenedAt, setPickerOpenedAt] = useState(0);
+
+  // The letter grows as it's written, and the line being typed would slide under the keyboard. While the
+  // cursor is at the end, follow it down; when it's somewhere in the middle, leave the scroll alone.
+  const scrollRef = useRef<ScrollView>(null);
+  const cursorAtEnd = useRef(true);
 
   const period = PERIODS.find((p) => p.key === choice);
   // null for the dev option, which is counted from the moment of sealing.
@@ -155,7 +160,9 @@ export default function LetterComposerScreen({
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    // 'padding' on Android too, as in the entry editor: apps are always edge-to-edge now, so the window
+    // no longer shrinks for the keyboard by itself.
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
       <View style={styles.topBar}>
         <Pressable onPress={requestClose} hitSlop={10}>
           <Text style={styles.topBtn}>{t('common.cancel')}</Text>
@@ -166,7 +173,7 @@ export default function LetterComposerScreen({
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>{t('composer.openIn')}</Text>
         <View style={styles.chips}>
           {choices.map((o) => {
@@ -214,6 +221,12 @@ export default function LetterComposerScreen({
             placeholderTextColor={paper.faded}
             value={body}
             onChangeText={setBody}
+            onSelectionChange={(e) => {
+              cursorAtEnd.current = e.nativeEvent.selection.end >= body.length;
+            }}
+            onContentSizeChange={() => {
+              if (cursorAtEnd.current) scrollRef.current?.scrollToEnd({ animated: true });
+            }}
             multiline
             textAlignVertical="top"
             autoFocus
