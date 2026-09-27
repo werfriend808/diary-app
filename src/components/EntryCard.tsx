@@ -1,10 +1,13 @@
+import { useTranslation } from 'react-i18next';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { fromKey, MONTHS, shortWeekday } from '../dates';
+import { fromKey, monthShort, shortWeekday } from '../dates';
+import { photoUrl } from '../storage';
 import { makeStyles, moodOf } from '../theme';
 import { Entry } from '../types';
 
 export default function EntryCard({ entry, onPress }: { entry: Entry; onPress: () => void }) {
   const styles = useStyles();
+  const { t } = useTranslation();
   const mood = moodOf(entry.mood);
   const d = fromKey(entry.date);
   const preview = entry.body.trim().replace(/\s+/g, ' ');
@@ -14,14 +17,14 @@ export default function EntryCard({ entry, onPress }: { entry: Entry; onPress: (
       <View style={styles.dateCol}>
         <Text style={styles.day}>{d.getDate()}</Text>
         <Text style={styles.weekday}>{shortWeekday(entry.date)}</Text>
-        <Text style={styles.month}>{MONTHS[d.getMonth()].slice(0, 3)}</Text>
+        <Text style={styles.month}>{monthShort(d.getMonth())}</Text>
       </View>
 
       <View style={styles.textCol}>
         <View style={styles.titleRow}>
           {mood && <Text style={styles.mood}>{mood.emoji}</Text>}
           <Text style={styles.title} numberOfLines={1}>
-            {entry.title.trim() || 'Untitled'}
+            {entry.title.trim() || t('entries.untitled')}
           </Text>
         </View>
         {preview.length > 0 && (
@@ -31,7 +34,7 @@ export default function EntryCard({ entry, onPress }: { entry: Entry; onPress: (
         )}
       </View>
 
-      {entry.photoUri && <Image source={{ uri: entry.photoUri }} style={styles.thumb} />}
+      {entry.photoName && <Image source={{ uri: photoUrl(entry.photoName) }} style={styles.thumb} />}
     </Pressable>
   );
 }

@@ -1,5 +1,6 @@
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Platform } from 'react-native';
+import { t } from './i18n';
 
 /** How long the app can sit in the background before it locks again (covers photo picking, sharing…). */
 export const RELOCK_AFTER_MS = 60_000;
@@ -16,12 +17,15 @@ export async function canLock(): Promise<boolean> {
 }
 
 /** Shows Face ID / fingerprint, falling back to the phone's passcode. */
-export async function unlock(prompt = 'Unlock your diary'): Promise<boolean> {
+export async function unlock(prompt = t('lock.prompt')): Promise<boolean> {
   if (Platform.OS === 'web') return true;
+  // If the phone's own screen lock was removed after the diary lock was turned on, there is nothing
+  // left to check against — refusing here would shut the owner out of their diary for good.
+  if (!(await canLock())) return true;
   try {
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage: prompt,
-      fallbackLabel: 'Use passcode',
+      fallbackLabel: t('lock.usePasscode'),
     });
     return result.success;
   } catch {

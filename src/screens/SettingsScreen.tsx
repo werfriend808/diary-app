@@ -10,15 +10,17 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { LanguagePref, languageName, LANGUAGES } from '../i18n';
 import { canLock, unlock } from '../lock';
 import { Settings } from '../settings';
 import { makeStyles, ThemePref, useTheme } from '../theme';
 
-const THEMES: { key: ThemePref; label: string }[] = [
-  { key: 'system', label: 'System' },
-  { key: 'light', label: 'Light' },
-  { key: 'dark', label: 'Dark' },
-];
+const THEMES = [
+  { key: 'system', label: 'settings.themeSystem' },
+  { key: 'light', label: 'settings.themeLight' },
+  { key: 'dark', label: 'settings.themeDark' },
+] as const satisfies readonly { key: ThemePref; label: string }[];
 
 export default function SettingsScreen({
   settings,
@@ -35,6 +37,7 @@ export default function SettingsScreen({
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useTranslation();
   const [lockAvailable, setLockAvailable] = useState<boolean | null>(null);
   const [busy, setBusy] = useState<'export' | 'import' | null>(null);
 
@@ -54,14 +57,11 @@ export default function SettingsScreen({
 
   const toggleLock = async (on: boolean) => {
     if (on && !lockAvailable) {
-      Alert.alert(
-        'Set up a screen lock first',
-        'To lock your diary, your phone needs a passcode, fingerprint or face unlock. You can set one up in your phone’s settings.',
-      );
+      Alert.alert(t('settings.setupLockTitle'), t('settings.setupLockBody'));
       return;
     }
     // Confirm it's really the owner before turning the lock on or off.
-    if (await unlock(on ? 'Confirm to turn on the lock' : 'Confirm to turn off the lock')) {
+    if (await unlock(on ? t('lock.confirmOn') : t('lock.confirmOff'))) {
       onChange({ ...settings, lock: on });
     }
   };
@@ -79,37 +79,38 @@ export default function SettingsScreen({
     <View style={{ flex: 1 }}>
       <View style={styles.topBar}>
         <Pressable onPress={onClose} hitSlop={10}>
-          <Text style={styles.topBtn}>Done</Text>
+          <Text style={styles.topBtn}>{t('common.done')}</Text>
         </Pressable>
-        <Text style={styles.topTitle}>Settings</Text>
+        <Text style={styles.topTitle}>{t('settings.title')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Group title="Appearance">
-          <View style={styles.segment}>
-            {THEMES.map((t) => {
-              const active = settings.theme === t.key;
-              return (
-                <Pressable
-                  key={t.key}
-                  onPress={() => onChange({ ...settings, theme: t.key })}
-                  style={[styles.segBtn, active && styles.segActive]}
-                >
-                  <Text style={[styles.segText, active && styles.segTextActive]}>{t.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+        <Group title={t('settings.appearance')}>
+          <Segment
+            options={THEMES.map((o) => ({ key: o.key, label: t(o.label) }))}
+            selected={settings.theme}
+            onSelect={(theme) => onChange({ ...settings, theme })}
+          />
         </Group>
 
-        <Group title="Privacy">
+        <Group title={t('settings.language')}>
+          {/* Language names are always shown in their own language, so anyone can find theirs. */}
+          <Segment<LanguagePref>
+            options={[
+              { key: 'system', label: t('settings.languageSystem') },
+              ...LANGUAGES.map((l) => ({ key: l, label: languageName(l) })),
+            ]}
+            selected={settings.language}
+            onSelect={(language) => onChange({ ...settings, language })}
+          />
+        </Group>
+
+        <Group title={t('settings.privacy')}>
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowTitle}>Lock my diary</Text>
-              <Text style={styles.rowSub}>
-                Ask for Face ID, fingerprint or your passcode when the app opens.
-              </Text>
+              <Text style={styles.rowTitle}>{t('settings.lockTitle')}</Text>
+              <Text style={styles.rowSub}>{t('settings.lockSub')}</Text>
             </View>
             <Switch
               value={settings.lock}
@@ -121,34 +122,52 @@ export default function SettingsScreen({
           </View>
         </Group>
 
-        <Group title="Backup">
-          <Text style={styles.note}>
-            Your diary lives only on this phone. Save a backup now and then, so you don’t lose it if you
-            change or lose your phone.
-          </Text>
+        <Group title={t('settings.backup')}>
+          <Text style={styles.note}>{t('settings.backupNote')}</Text>
           <ActionButton
-            label="Save a backup"
-            sub="Entries, photos and letters in one file. Save it to Files, Google Drive or email."
+            label={t('settings.saveBackup')}
+            sub={t('settings.saveBackupSub')}
             busy={busy === 'export'}
             disabled={busy !== null}
             onPress={() => run('export', onExport)}
           />
           <ActionButton
-            label="Restore from a backup"
-            sub="Adds entries and letters from a backup file. Nothing you have now is deleted."
+            label={t('settings.restore')}
+            sub={t('settings.restoreSub')}
             busy={busy === 'import'}
             disabled={busy !== null}
             onPress={() => run('import', onImport)}
           />
-          <Text style={styles.warn}>
-            The backup file isn’t encrypted, and it includes your sealed letters. Keep it somewhere private.
-          </Text>
+          <Text style={styles.warn}>{t('settings.backupWarning')}</Text>
         </Group>
 
-        <Text style={styles.footer}>
-          No account. No ads. Your words never leave this phone unless you save a backup.
-        </Text>
+        <Text style={styles.footer}>{t('settings.footer')}</Text>
       </ScrollView>
+    </View>
+  );
+}
+
+/** A row of mutually exclusive buttons, like a segmented control. */
+function Segment<K extends string>({
+  options,
+  selected,
+  onSelect,
+}: {
+  options: { key: K; label: string }[];
+  selected: K;
+  onSelect: (key: K) => void;
+}) {
+  const styles = useStyles();
+  return (
+    <View style={styles.segment}>
+      {options.map((o) => {
+        const active = selected === o.key;
+        return (
+          <Pressable key={o.key} onPress={() => onSelect(o.key)} style={[styles.segBtn, active && styles.segActive]}>
+            <Text style={[styles.segText, active && styles.segTextActive]}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -216,9 +235,9 @@ const useStyles = makeStyles(({ colors }) =>
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors.line,
     },
-    segBtn: { flex: 1, paddingVertical: 10, borderRadius: 9, alignItems: 'center' },
+    segBtn: { flex: 1, paddingVertical: 10, paddingHorizontal: 4, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
     segActive: { backgroundColor: colors.accent },
-    segText: { fontSize: 15, color: colors.ink },
+    segText: { fontSize: 15, color: colors.ink, textAlign: 'center' },
     segTextActive: { color: '#fff', fontWeight: '700' },
     row: {
       flexDirection: 'row',

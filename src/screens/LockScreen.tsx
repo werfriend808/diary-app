@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import { unlock } from '../lock';
 import { makeStyles, serif } from '../theme';
@@ -6,6 +7,7 @@ import { makeStyles, serif } from '../theme';
 /** Covers the whole app until the user unlocks with Face ID / fingerprint / passcode. */
 export default function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
   const styles = useStyles();
+  const { t } = useTranslation();
   const busy = useRef(false);
 
   const tryUnlock = async () => {
@@ -35,10 +37,10 @@ export default function LockScreen({ onUnlocked }: { onUnlocked: () => void }) {
   return (
     <View style={styles.wrap}>
       <Text style={styles.icon}>🔒</Text>
-      <Text style={styles.title}>Your diary is locked</Text>
-      <Text style={styles.sub}>Only you can open it.</Text>
+      <Text style={styles.title}>{t('lock.title')}</Text>
+      <Text style={styles.sub}>{t('lock.sub')}</Text>
       <Pressable onPress={tryUnlock} style={({ pressed }) => [styles.btn, pressed && { opacity: 0.85 }]}>
-        <Text style={styles.btnText}>Unlock</Text>
+        <Text style={styles.btnText}>{t('lock.unlock')}</Text>
       </Pressable>
     </View>
   );

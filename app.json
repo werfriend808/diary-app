@@ -7,7 +7,10 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -35,7 +38,13 @@
           "faceIDPermission": "My Diary uses Face ID so only you can open your diary."
         }
       ],
-      "expo-notifications"
-    ]
+      "expo-notifications",
+      "@react-native-community/datetimepicker",
+      "expo-localization"
+    ],
+    "locales": {
+      "en": "./locales/en.json",
+      "ko": "./locales/ko.json"
+    }
   }
 }

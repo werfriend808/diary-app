@@ -1,25 +1,27 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import EntryCard from '../components/EntryCard';
-import { longDate, MONTHS, toKey, todayKey } from '../dates';
+import { longDate, monthYear, toKey, weekdayInitials } from '../dates';
 import { makeStyles, moodOf, useTheme } from '../theme';
 import { Entry } from '../types';
 
-const WEEK_HEADER = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
 export default function CalendarScreen({
   entries,
+  today,
   onOpen,
   selected,
   onSelect,
 }: {
   entries: Entry[];
+  today: string;
   onOpen: (e: Entry) => void;
   selected: string;
   onSelect: (dateKey: string) => void;
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useTranslation();
   const [month, setMonth] = useState(() => {
     const [y, m] = selected.split('-').map(Number);
     return new Date(y, m - 1, 1);
@@ -43,7 +45,6 @@ export default function CalendarScreen({
 
   const shiftMonth = (delta: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + delta, 1));
 
-  const today = todayKey();
   const dayEntries = byDay.get(selected) ?? [];
 
   return (
@@ -53,16 +54,14 @@ export default function CalendarScreen({
           <Pressable onPress={() => shiftMonth(-1)} hitSlop={12}>
             <Text style={styles.arrow}>‹</Text>
           </Pressable>
-          <Text style={styles.monthTitle}>
-            {MONTHS[month.getMonth()]} {month.getFullYear()}
-          </Text>
+          <Text style={styles.monthTitle}>{monthYear(month)}</Text>
           <Pressable onPress={() => shiftMonth(1)} hitSlop={12}>
             <Text style={styles.arrow}>›</Text>
           </Pressable>
         </View>
 
         <View style={styles.row}>
-          {WEEK_HEADER.map((w, i) => (
+          {weekdayInitials().map((w, i) => (
             <Text key={i} style={styles.weekLabel}>
               {w}
             </Text>
@@ -77,8 +76,14 @@ export default function CalendarScreen({
             const isSel = key === selected;
             const isToday = key === today;
             return (
-              <Pressable key={i} style={styles.cell} onPress={() => onSelect(key)}>
-                <View style={[styles.dayCircle, isSel && styles.daySelected]}>
+              <View key={i} style={styles.cell}>
+                {/* The circle itself is what's pressed, so Android's press/focus highlight is round, not a
+                    square around the whole cell. hitSlop keeps the tap area as big as the cell. */}
+                <Pressable
+                  style={[styles.dayCircle, isSel && styles.daySelected]}
+                  hitSlop={8}
+                  onPress={() => onSelect(key)}
+                >
                   <Text
                     style={[
                       styles.dayNum,
@@ -88,9 +93,9 @@ export default function CalendarScreen({
                   >
                     {Number(key.slice(8))}
                   </Text>
-                </View>
+                </Pressable>
                 {list && <View style={[styles.dot, { backgroundColor: mood?.color ?? colors.accent }]} />}
-              </Pressable>
+              </View>
             );
           })}
         </View>
@@ -98,7 +103,7 @@ export default function CalendarScreen({
 
       <Text style={styles.dayTitle}>{longDate(selected)}</Text>
       {dayEntries.length === 0 ? (
-        <Text style={styles.none}>No entries this day. Tap + to write one.</Text>
+        <Text style={styles.none}>{t('entries.noEntriesThisDay')}</Text>
       ) : (
         dayEntries.map((e) => <EntryCard key={e.id} entry={e} onPress={() => onOpen(e)} />)
       )}
