@@ -3,6 +3,7 @@ import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import { isDateKey, toKey, todayKey } from './dates';
+import { t } from './i18n';
 import { isLive } from './records';
 import { photoFile, savePhotoFromBase64 } from './storage';
 import { MOODS } from './theme';
@@ -72,12 +73,12 @@ export async function exportBackup(entries: Entry[], letters: Letter[]) {
   file.write(']}', { append: true });
 
   if (!(await Sharing.isAvailableAsync())) {
-    throw new Error('Sharing is not available on this device.');
+    throw new Error(t('backup.noSharing'));
   }
   await Sharing.shareAsync(file.uri, {
     mimeType: 'application/json',
     UTI: 'public.json',
-    dialogTitle: 'Save your diary backup',
+    dialogTitle: t('backup.shareTitle'),
   });
 }
 
@@ -127,13 +128,13 @@ export async function importBackup(current: {
   try {
     data = JSON.parse(await new File(picked.assets[0].uri).text());
   } catch {
-    throw new Error('That file isn’t a diary backup.');
+    throw new Error(t('backup.notABackup'));
   }
   if (data?.app !== APP_ID || !Array.isArray(data.entries) || !Array.isArray(data.letters)) {
-    throw new Error('That file isn’t a diary backup.');
+    throw new Error(t('backup.notABackup'));
   }
   if (data.version > VERSION) {
-    throw new Error('This backup was made by a newer version of the app. Please update the app first.');
+    throw new Error(t('backup.tooNew'));
   }
 
   const now = Date.now();

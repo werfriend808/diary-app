@@ -1,4 +1,5 @@
 import { useEffect, useEffectEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { humanSpan, longDate, toKey } from '../dates';
 import { makeStyles, serif } from '../theme';
@@ -6,6 +7,7 @@ import { Letter } from '../types';
 
 export default function LetterReaderScreen({ letter, onClose }: { letter: Letter; onClose: () => void }) {
   const styles = useStyles();
+  const { t } = useTranslation();
   // Registered once, so the lock screen's handler stays on top.
   const onBack = useEffectEvent(onClose);
   useEffect(() => {
@@ -23,20 +25,20 @@ export default function LetterReaderScreen({ letter, onClose }: { letter: Letter
     <View style={{ flex: 1 }}>
       <View style={styles.topBar}>
         <Pressable onPress={onClose} hitSlop={10}>
-          <Text style={styles.topBtn}>Back</Text>
+          <Text style={styles.topBtn}>{t('common.back')}</Text>
         </Pressable>
-        <Text style={styles.topTitle}>A letter from you</Text>
+        <Text style={styles.topTitle}>{t('reader.title')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.meta}>Written {humanSpan(letter.writtenOn, openedOn)} ago</Text>
+        <Text style={styles.meta}>{t('reader.writtenAgo', { span: humanSpan(letter.writtenOn, openedOn) })}</Text>
         <View style={styles.paper}>
           <Text style={styles.date}>{longDate(letter.writtenOn)}</Text>
-          <Text style={styles.salutation}>Dear future me,</Text>
+          <Text style={styles.salutation}>{t('common.dearFutureMe')}</Text>
           <Text style={styles.body}>{letter.body.trim()}</Text>
         </View>
-        <Text style={styles.footer}>Opened {longDate(openedOn)}</Text>
+        <Text style={styles.footer}>{t('reader.openedOn', { date: longDate(openedOn) })}</Text>
       </ScrollView>
     </View>
   );

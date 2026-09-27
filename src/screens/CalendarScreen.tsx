@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import EntryCard from '../components/EntryCard';
-import { longDate, MONTHS, toKey } from '../dates';
+import { longDate, monthYear, toKey, weekdayInitials } from '../dates';
 import { makeStyles, moodOf, useTheme } from '../theme';
 import { Entry } from '../types';
-
-const WEEK_HEADER = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export default function CalendarScreen({
   entries,
@@ -22,6 +21,7 @@ export default function CalendarScreen({
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useTranslation();
   const [month, setMonth] = useState(() => {
     const [y, m] = selected.split('-').map(Number);
     return new Date(y, m - 1, 1);
@@ -54,16 +54,14 @@ export default function CalendarScreen({
           <Pressable onPress={() => shiftMonth(-1)} hitSlop={12}>
             <Text style={styles.arrow}>‹</Text>
           </Pressable>
-          <Text style={styles.monthTitle}>
-            {MONTHS[month.getMonth()]} {month.getFullYear()}
-          </Text>
+          <Text style={styles.monthTitle}>{monthYear(month)}</Text>
           <Pressable onPress={() => shiftMonth(1)} hitSlop={12}>
             <Text style={styles.arrow}>›</Text>
           </Pressable>
         </View>
 
         <View style={styles.row}>
-          {WEEK_HEADER.map((w, i) => (
+          {weekdayInitials().map((w, i) => (
             <Text key={i} style={styles.weekLabel}>
               {w}
             </Text>
@@ -105,7 +103,7 @@ export default function CalendarScreen({
 
       <Text style={styles.dayTitle}>{longDate(selected)}</Text>
       {dayEntries.length === 0 ? (
-        <Text style={styles.none}>No entries this day. Tap + to write one.</Text>
+        <Text style={styles.none}>{t('entries.noEntriesThisDay')}</Text>
       ) : (
         dayEntries.map((e) => <EntryCard key={e.id} entry={e} onPress={() => onOpen(e)} />)
       )}

@@ -79,12 +79,13 @@ export function makeStyles<T>(factory: (t: Theme) => T) {
 /** Book-like typeface for looking back: Georgia on iOS, the system serif on Android. */
 export const serif = Platform.select({ ios: 'Georgia', android: 'serif', default: 'Georgia, serif' });
 
-export const MOODS: { key: MoodKey; emoji: string; label: string; color: string }[] = [
-  { key: 'great', emoji: '😄', label: 'Great', color: '#E9A23B' },
-  { key: 'good', emoji: '🙂', label: 'Good', color: '#7FB069' },
-  { key: 'okay', emoji: '😐', label: 'Okay', color: '#A39A8F' },
-  { key: 'low', emoji: '😔', label: 'Low', color: '#6C8EBF' },
-  { key: 'sad', emoji: '😢', label: 'Sad', color: '#7A6BB0' },
+/** Mood names are in the language files under moods.<key>. */
+export const MOODS: { key: MoodKey; emoji: string; color: string }[] = [
+  { key: 'great', emoji: '😄', color: '#E9A23B' },
+  { key: 'good', emoji: '🙂', color: '#7FB069' },
+  { key: 'okay', emoji: '😐', color: '#A39A8F' },
+  { key: 'low', emoji: '😔', color: '#6C8EBF' },
+  { key: 'sad', emoji: '😢', color: '#7A6BB0' },
 ];
 
 export const moodOf = (key?: MoodKey) => MOODS.find((m) => m.key === key);

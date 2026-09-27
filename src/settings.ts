@@ -1,14 +1,17 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LanguagePref } from './i18n';
 import { ThemePref } from './theme';
 
 export interface Settings {
   theme: ThemePref;
   /** Ask for Face ID / fingerprint / passcode when the app opens. */
   lock: boolean;
+  /** 'system' follows the phone (Korean if the phone is in Korean, otherwise English). */
+  language: LanguagePref;
 }
 
 const KEY = 'diary.settings.v1';
-export const DEFAULT_SETTINGS: Settings = { theme: 'system', lock: false };
+export const DEFAULT_SETTINGS: Settings = { theme: 'system', lock: false, language: 'system' };
 
 export async function loadSettings(): Promise<Settings> {
   try {

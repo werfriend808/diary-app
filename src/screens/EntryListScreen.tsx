@@ -1,4 +1,5 @@
 import { ReactElement } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import EntryCard from '../components/EntryCard';
 import { makeStyles } from '../theme';
@@ -15,6 +16,7 @@ export default function EntryListScreen({
   header?: ReactElement;
 }) {
   const styles = useStyles();
+  const { t } = useTranslation();
   return (
     <FlatList
       data={entries}
@@ -24,8 +26,8 @@ export default function EntryListScreen({
       ListEmptyComponent={
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>📔</Text>
-          <Text style={styles.emptyTitle}>Your diary is empty</Text>
-          <Text style={styles.emptyText}>Tap the + button to write your first entry.</Text>
+          <Text style={styles.emptyTitle}>{t('entries.emptyTitle')}</Text>
+          <Text style={styles.emptyText}>{t('entries.emptyBody')}</Text>
         </View>
       }
       renderItem={({ item }) => <EntryCard entry={item} onPress={() => onOpen(item)} />}

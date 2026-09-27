@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { useTranslation } from 'react-i18next';
 import { longDateTime } from '../dates';
 import {
   customProblem,
@@ -24,13 +25,11 @@ import {
 import { makeStyles, serif, useTheme } from '../theme';
 
 const CUSTOM = 'custom';
-/** "In 1 minute", for trying out notifications. __DEV__ is false in release builds, which drop it. */
+/**
+ * "In 1 minute", for trying out notifications. __DEV__ is false in release builds, which drop it — so its
+ * wording stays here in English rather than in the language files, which ship in every build.
+ */
 const DEV_MINUTE = 'dev-1min';
-const CHOICES = [
-  ...PERIODS.map((p) => ({ key: p.key, label: p.label })),
-  ...(__DEV__ ? [{ key: DEV_MINUTE, label: '1 minute (dev)' }] : []),
-  { key: CUSTOM, label: 'Pick date & time' },
-];
 
 /** The day from `day` and the time of day from `time`, as a timestamp. */
 const combine = (day: Date, time: Date) =>
@@ -48,6 +47,12 @@ export default function LetterComposerScreen({
 }) {
   const { colors, paper, isDark } = useTheme();
   const styles = useStyles();
+  const { t, i18n } = useTranslation();
+  const choices = [
+    ...PERIODS.map((p) => ({ key: p.key as string, label: t(`composer.periods.${p.key}`) })),
+    ...(__DEV__ ? [{ key: DEV_MINUTE, label: '1 minute (dev)' }] : []),
+    { key: CUSTOM, label: t('composer.custom') },
+  ];
   const [body, setBody] = useState('');
   const [choice, setChoice] = useState('1y');
   const [customAt, setCustomAt] = useState<number | null>(null);
@@ -60,9 +65,9 @@ export default function LetterComposerScreen({
 
   const requestClose = () => {
     if (!body.trim()) return onClose();
-    Alert.alert('Discard this letter?', undefined, [
-      { text: 'Keep writing', style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: onClose },
+    Alert.alert(t('composer.discardTitle'), undefined, [
+      { text: t('common.keepWriting'), style: 'cancel' },
+      { text: t('common.discard'), style: 'destructive', onPress: onClose },
     ]);
   };
 
@@ -99,7 +104,7 @@ export default function LetterComposerScreen({
           const picked = combine(day, time);
           const problem = customProblem(picked, Date.now());
           if (problem) {
-            Alert.alert('Pick another time', problem);
+            Alert.alert(t('composer.pickAnotherTime'), problem);
             return;
           }
           setCustomAt(picked);
@@ -122,7 +127,7 @@ export default function LetterComposerScreen({
     if (opensAt === null) return null;
     const problem = choice === CUSTOM ? customProblem(opensAt, now) : null;
     if (problem) {
-      Alert.alert('Pick another time', problem);
+      Alert.alert(t('composer.pickAnotherTime'), problem);
       return null;
     }
     return opensAt;
@@ -130,16 +135,16 @@ export default function LetterComposerScreen({
 
   const seal = () => {
     if (!body.trim()) {
-      Alert.alert('Your letter is empty', 'Write a few words to your future self first.');
+      Alert.alert(t('composer.emptyTitle'), t('composer.emptyBody'));
       return;
     }
     const at = sealTime();
     if (at === null) return;
-    const until = choice === DEV_MINUTE ? 'a minute from now' : longDateTime(at);
-    Alert.alert('Seal this letter?', `You won’t be able to read or change it until ${until}.`, [
-      { text: 'Not yet', style: 'cancel' },
+    const until = __DEV__ && choice === DEV_MINUTE ? 'a minute from now (dev)' : longDateTime(at);
+    Alert.alert(t('composer.sealTitle'), t('composer.sealBody', { when: until }), [
+      { text: t('composer.notYet'), style: 'cancel' },
       {
-        text: 'Seal it',
+        text: t('composer.sealIt'),
         // Checked again: the confirmation may have been left open for a while.
         onPress: () => {
           const final = sealTime();
@@ -153,18 +158,18 @@ export default function LetterComposerScreen({
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.topBar}>
         <Pressable onPress={requestClose} hitSlop={10}>
-          <Text style={styles.topBtn}>Cancel</Text>
+          <Text style={styles.topBtn}>{t('common.cancel')}</Text>
         </Pressable>
-        <Text style={styles.topTitle}>Letter to future you</Text>
+        <Text style={styles.topTitle}>{t('composer.title')}</Text>
         <Pressable onPress={seal} hitSlop={10}>
-          <Text style={[styles.topBtn, { fontWeight: '700' }]}>Seal</Text>
+          <Text style={[styles.topBtn, { fontWeight: '700' }]}>{t('composer.seal')}</Text>
         </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.label}>Open it in</Text>
+        <Text style={styles.label}>{t('composer.openIn')}</Text>
         <View style={styles.chips}>
-          {CHOICES.map((o) => {
+          {choices.map((o) => {
             const active = o.key === choice;
             return (
               <Pressable
@@ -188,6 +193,8 @@ export default function LetterComposerScreen({
               maximumDate={new Date(latestCustom(pickerOpenedAt))}
               onValueChange={(_event, d) => setCustomAt(d.getTime())}
               themeVariant={isDark ? 'dark' : 'light'}
+              // Match the app's language rather than the phone's (Android's dialogs always follow the phone).
+              locale={i18n.language}
               accentColor={colors.accent}
             />
           </View>
@@ -195,15 +202,15 @@ export default function LetterComposerScreen({
 
         <Text style={styles.opensOn}>
           {opensAt !== null
-            ? `Opens ${longDateTime(opensAt)}`
+            ? t('composer.opens', { when: longDateTime(opensAt) })
             : __DEV__ && 'Opens 1 minute after you seal it (development builds only)'}
         </Text>
 
         <View style={styles.paper}>
-          <Text style={styles.salutation}>Dear future me,</Text>
+          <Text style={styles.salutation}>{t('common.dearFutureMe')}</Text>
           <TextInput
             style={styles.body}
-            placeholder="What’s on your mind today? What do you hope has changed, or stayed the same?"
+            placeholder={t('composer.placeholder')}
             placeholderTextColor={paper.faded}
             value={body}
             onChangeText={setBody}

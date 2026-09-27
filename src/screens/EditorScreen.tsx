@@ -13,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { longDate, shiftDay, todayKey } from '../dates';
 import { deletePhoto, persistPhoto, photoUrl } from '../storage';
 import { MOODS, makeStyles, useTheme } from '../theme';
@@ -33,6 +34,7 @@ export default function EditorScreen({
 }) {
   const { colors } = useTheme();
   const styles = useStyles();
+  const { t } = useTranslation();
   const [date, setDate] = useState(original.date);
   const [title, setTitle] = useState(original.title);
   const [body, setBody] = useState(original.body);
@@ -57,9 +59,9 @@ export default function EditorScreen({
 
   const requestClose = () => {
     if (!dirty) return discard();
-    Alert.alert('Discard changes?', 'Your edits to this entry will be lost.', [
-      { text: 'Keep editing', style: 'cancel' },
-      { text: 'Discard', style: 'destructive', onPress: discard },
+    Alert.alert(t('editor.discardTitle'), t('editor.discardBody'), [
+      { text: t('editor.keepEditing'), style: 'cancel' },
+      { text: t('common.discard'), style: 'destructive', onPress: discard },
     ]);
   };
 
@@ -86,7 +88,7 @@ export default function EditorScreen({
       unsavedPhotos.current.push(saved);
       setPhotoName(saved);
     } catch {
-      Alert.alert('Could not add photo', 'Please try a different image.');
+      Alert.alert(t('editor.photoFailedTitle'), t('editor.photoFailedBody'));
     } finally {
       setBusy(false);
     }
@@ -94,7 +96,7 @@ export default function EditorScreen({
 
   const save = () => {
     if (!title.trim() && !body.trim() && !photoName) {
-      Alert.alert('Nothing to save', 'Write something or add a photo first.');
+      Alert.alert(t('editor.nothingTitle'), t('editor.nothingBody'));
       return;
     }
     // Remove the old photo if it was replaced/removed, plus any extra picks that weren't kept.
@@ -105,10 +107,10 @@ export default function EditorScreen({
   };
 
   const confirmDelete = () =>
-    Alert.alert('Delete entry?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('editor.deleteTitle'), t('editor.deleteBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Delete',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: () => {
           // The saved photo is deleted along with the entry (App's deleteEntry); these are unsaved picks.
@@ -124,11 +126,11 @@ export default function EditorScreen({
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.topBar}>
         <Pressable onPress={requestClose} hitSlop={10}>
-          <Text style={styles.topBtn}>Back</Text>
+          <Text style={styles.topBtn}>{t('common.back')}</Text>
         </Pressable>
-        <Text style={styles.topTitle}>{isNew ? 'New entry' : 'Edit entry'}</Text>
+        <Text style={styles.topTitle}>{isNew ? t('editor.newTitle') : t('editor.editTitle')}</Text>
         <Pressable onPress={save} hitSlop={10} disabled={busy}>
-          <Text style={[styles.topBtn, styles.saveBtn, busy && { opacity: 0.4 }]}>Save</Text>
+          <Text style={[styles.topBtn, styles.saveBtn, busy && { opacity: 0.4 }]}>{t('common.save')}</Text>
         </Pressable>
       </View>
 
@@ -147,7 +149,7 @@ export default function EditorScreen({
           </Pressable>
         </View>
 
-        <Text style={styles.label}>How are you feeling?</Text>
+        <Text style={styles.label}>{t('editor.moodQuestion')}</Text>
         <View style={styles.moodRow}>
           {MOODS.map((m) => {
             const active = mood === m.key;
@@ -159,7 +161,7 @@ export default function EditorScreen({
               >
                 <Text style={styles.moodEmoji}>{m.emoji}</Text>
                 <Text style={[styles.moodLabel, active && { color: colors.ink, fontWeight: '600' }]}>
-                  {m.label}
+                  {t(`moods.${m.key}`)}
                 </Text>
               </Pressable>
             );
@@ -168,7 +170,7 @@ export default function EditorScreen({
 
         <TextInput
           style={styles.title}
-          placeholder="Title"
+          placeholder={t('editor.titlePlaceholder')}
           placeholderTextColor={colors.muted}
           value={title}
           onChangeText={setTitle}
@@ -176,7 +178,7 @@ export default function EditorScreen({
         />
         <TextInput
           style={styles.body}
-          placeholder="What happened today?"
+          placeholder={t('editor.bodyPlaceholder')}
           placeholderTextColor={colors.muted}
           value={body}
           onChangeText={setBody}
@@ -189,22 +191,22 @@ export default function EditorScreen({
             <Image source={{ uri: photoUrl(photoName) }} style={styles.photo} resizeMode="cover" />
             <View style={styles.photoActions}>
               <Pressable onPress={pickPhoto}>
-                <Text style={styles.link}>Change photo</Text>
+                <Text style={styles.link}>{t('editor.changePhoto')}</Text>
               </Pressable>
               <Pressable onPress={() => setPhotoName(undefined)}>
-                <Text style={[styles.link, { color: colors.danger }]}>Remove</Text>
+                <Text style={[styles.link, { color: colors.danger }]}>{t('editor.removePhoto')}</Text>
               </Pressable>
             </View>
           </View>
         ) : (
           <Pressable style={styles.addPhoto} onPress={pickPhoto} disabled={busy}>
-            <Text style={styles.addPhotoText}>{busy ? 'Adding…' : '＋  Add a photo'}</Text>
+            <Text style={styles.addPhotoText}>{busy ? t('editor.addingPhoto') : t('editor.addPhoto')}</Text>
           </Pressable>
         )}
 
         {!isNew && (
           <Pressable onPress={confirmDelete} style={styles.deleteBtn}>
-            <Text style={styles.deleteText}>Delete entry</Text>
+            <Text style={styles.deleteText}>{t('editor.deleteEntry')}</Text>
           </Pressable>
         )}
       </ScrollView>

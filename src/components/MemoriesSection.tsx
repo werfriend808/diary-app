@@ -1,6 +1,7 @@
+import { useTranslation } from 'react-i18next';
 import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { longDate } from '../dates';
-import { Memory } from '../memories';
+import { Memory, memoryLabel } from '../memories';
 import { photoUrl } from '../storage';
 import { makeStyles, moodOf, serif } from '../theme';
 import { Entry } from '../types';
@@ -19,6 +20,7 @@ export default function MemoriesSection({
   onOpenLetters: () => void;
 }) {
   const styles = useStyles();
+  const { t } = useTranslation();
   const { width } = useWindowDimensions();
   const cardWidth = memories.length > 1 ? width - 64 : width - 32;
 
@@ -32,12 +34,10 @@ export default function MemoriesSection({
           <Text style={styles.letterIcon}>✉️</Text>
           <View style={{ flex: 1 }}>
             <Text style={styles.letterTitle}>
-              {readyLetters === 1
-                ? 'A letter from your past self'
-                : `${readyLetters} letters from your past self`}
+              {t('memories.lettersReady', { count: readyLetters })}
             </Text>
             <Text style={styles.letterSub}>
-              {readyLetters === 1 ? 'It’s ready to open.' : 'They’re ready to open.'}
+              {t('memories.lettersReadySub', { count: readyLetters })}
             </Text>
           </View>
           <Text style={styles.chev}>›</Text>
@@ -46,7 +46,7 @@ export default function MemoriesSection({
 
       {memories.length > 0 ? (
         <>
-          <Text style={styles.heading}>On this day</Text>
+          <Text style={styles.heading}>{t('memories.onThisDay')}</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -54,11 +54,11 @@ export default function MemoriesSection({
             decelerationRate="fast"
             contentContainerStyle={{ gap: 10 }}
           >
-            {memories.map(({ entry, label }) => (
+            {memories.map(({ entry, ago }) => (
               <MemoryCard
                 key={entry.id}
                 entry={entry}
-                label={label}
+                label={memoryLabel(ago)}
                 width={cardWidth}
                 onPress={() => onOpen(entry)}
               />
@@ -67,11 +67,11 @@ export default function MemoriesSection({
         </>
       ) : (
         hasEntries && (
-          <Text style={styles.hint}>Keep writing. In a week, today’s entry will come back to you here.</Text>
+          <Text style={styles.hint}>{t('memories.hint')}</Text>
         )
       )}
 
-      {hasEntries && <Text style={styles.allHeading}>All entries</Text>}
+      {hasEntries && <Text style={styles.allHeading}>{t('memories.allEntries')}</Text>}
     </View>
   );
 }
@@ -88,6 +88,7 @@ function MemoryCard({
   onPress: () => void;
 }) {
   const styles = useStyles();
+  const { t } = useTranslation();
   const mood = moodOf(entry.mood);
   return (
     <Pressable
@@ -112,7 +113,7 @@ function MemoryCard({
             {entry.body.trim()}
           </Text>
         )}
-        <Text style={styles.readMore}>Read the whole entry</Text>
+        <Text style={styles.readMore}>{t('memories.readMore')}</Text>
       </View>
     </Pressable>
   );

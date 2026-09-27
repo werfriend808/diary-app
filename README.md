@@ -40,6 +40,8 @@ Everything stays on your phone. No account, no ads, no internet needed.
 - **Backup and restore:** save entries, photos, and letters to one file (Files, Google Drive,
   email…), and restore it on a new phone. Restoring only adds; it never deletes.
 - **Dark mode:** follows your phone, or choose Light or Dark in Settings
+- **Language:** English and Korean. Follows your phone (Korean if the phone is in Korean,
+  otherwise English), or pick one in Settings; the whole app switches right away
 
 ## Tech
 
@@ -48,6 +50,7 @@ Everything stays on your phone. No account, no ads, no internet needed.
   app's private documents folder (`expo-file-system`); settings use AsyncStorage
 - `expo-local-authentication` (app lock), `expo-notifications` (local letter reminders),
   `@react-native-community/datetimepicker` (letter date and time),
+  `expo-localization` + `i18next` / `react-i18next` (English and Korean),
   `expo-sharing` + `expo-document-picker` (backup and restore)
 - No backend, no analytics, no network calls
 - Privacy policy draft: [`docs/privacy-policy.md`](docs/privacy-policy.md)
@@ -154,9 +157,11 @@ src/
   notifications.ts                "Your letter is open" notifications, rescheduling, tap-to-open
   records.ts                      What a deleted entry or letter leaves behind
   settings.ts                     Saved settings
-  dates.ts                        Date and time wording
+  dates.ts                        Date and time wording (in the current language)
+  i18n/                           Translations: en.json, ko.json (one file per language) and set-up
   theme.tsx                       Light and dark colors, fonts, and moods
   types.ts                        Entry and Letter types
+locales/                          Korean/English iOS permission prompts (photos, Face ID)
 docs/
   privacy-policy.md               Draft privacy policy (needed for the stores)
   name-ideas.md                   Shortlist of app names
@@ -170,6 +175,7 @@ Before launch
 - [x] App lock with Face ID, fingerprint, or passcode
 - [x] Notification when a letter unlocks
 - [x] Dark mode
+- [x] Languages: English and Korean
 - [ ] Privacy policy: fill in the draft and publish it at a public URL
 - [ ] Test everything on a real iPhone and Android phone
 - [ ] Permanent app IDs in `app.json`

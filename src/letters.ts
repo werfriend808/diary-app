@@ -1,4 +1,5 @@
 import { addMonths, fromKey, shiftDay } from './dates';
+import { t } from './i18n';
 import { Letter } from './types';
 
 /** Letters sealed for a set period open in the morning of their day rather than at midnight. */
@@ -16,17 +17,17 @@ export const isUnlocked = (l: Letter, now: number) => unlockTime(l) <= now;
 
 // ---- sealing periods ----
 
-export type Period =
-  | { key: string; label: string; days: number }
-  | { key: string; label: string; months: number };
+/** Each key has a name in the language files under composer.periods. */
+export type PeriodKey = '1w' | '1m' | '3m' | '6m' | '1y' | '3y';
+export type Period = { key: PeriodKey; days: number } | { key: PeriodKey; months: number };
 
 export const PERIODS: Period[] = [
-  { key: '1w', label: '1 week', days: 7 },
-  { key: '1m', label: '1 month', months: 1 },
-  { key: '3m', label: '3 months', months: 3 },
-  { key: '6m', label: '6 months', months: 6 },
-  { key: '1y', label: '1 year', months: 12 },
-  { key: '3y', label: '3 years', months: 36 },
+  { key: '1w', days: 7 },
+  { key: '1m', months: 1 },
+  { key: '3m', months: 3 },
+  { key: '6m', months: 6 },
+  { key: '1y', months: 12 },
+  { key: '3y', months: 36 },
 ];
 
 /** 9 AM on the day the period ends, counted from `today` (YYYY-MM-DD). */
@@ -51,8 +52,8 @@ export function latestCustom(now: number): number {
 
 /** Why a custom moment can't be used, or null if it's fine. */
 export function customProblem(ms: number, now: number): string | null {
-  if (ms < earliestCustom(now)) return 'Choose a time at least 10 minutes from now.';
-  if (ms > latestCustom(now)) return 'Choose a time within 3 years from now.';
+  if (ms < earliestCustom(now)) return t('composer.tooSoon');
+  if (ms > latestCustom(now)) return t('composer.tooFar');
   return null;
 }
 

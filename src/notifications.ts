@@ -2,6 +2,7 @@ import { isRunningInExpoGo } from 'expo';
 import type { NotificationResponse } from 'expo-notifications';
 import { Platform } from 'react-native';
 import { mediumDate } from './dates';
+import { t } from './i18n';
 import { unlockTime } from './letters';
 import { isLive } from './records';
 import { Letter } from './types';
@@ -49,7 +50,7 @@ export type NotificationPermission = 'granted' | 'denied' | 'undetermined' | 'un
 async function checkPermission(N: NotificationsModule, ask: boolean): Promise<NotificationPermission> {
   if (Platform.OS === 'android') {
     await N.setNotificationChannelAsync(CHANNEL, {
-      name: 'Letters to future you',
+      name: t('notifications.channel'),
       importance: N.AndroidImportance.DEFAULT,
     });
   }
@@ -117,8 +118,9 @@ async function sync(letters: Letter[], { askPermission }: { askPermission: boole
 function letterNotification(N: NotificationsModule, letter: Letter) {
   return {
     content: {
-      title: 'A letter from your past self ✉️',
-      body: `You wrote it on ${mediumDate(letter.writtenOn)}. It’s open now.`,
+      // Worded in the app's language at scheduling time; App re-syncs when the language changes.
+      title: t('notifications.title'),
+      body: t('notifications.body', { date: mediumDate(letter.writtenOn) }),
       data: { kind: LETTER_KIND, letterId: letter.id },
     },
     trigger: {

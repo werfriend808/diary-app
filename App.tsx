@@ -1,10 +1,12 @@
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { exportBackup, importBackup, removeOldBackupFiles } from './src/backup';
 import MemoriesSection from './src/components/MemoriesSection';
 import { todayKey, toKey } from './src/dates';
+import { applyLanguage, resolveLanguage, t } from './src/i18n';
 import { isUnlocked, unlockTime } from './src/letters';
 import { RELOCK_AFTER_MS } from './src/lock';
 import { memoriesFor } from './src/memories';
@@ -40,11 +42,11 @@ type Overlay =
   | { kind: 'settings' }
   | null;
 
-const TABS: { key: Tab; icon: string; label: string }[] = [
-  { key: 'list', icon: '📖', label: 'Diary' },
-  { key: 'calendar', icon: '📅', label: 'Calendar' },
-  { key: 'letters', icon: '✉️', label: 'Letters' },
-];
+const TABS = [
+  { key: 'list', icon: '📖', label: 'tabs.diary' },
+  { key: 'calendar', icon: '📅', label: 'tabs.calendar' },
+  { key: 'letters', icon: '✉️', label: 'tabs.letters' },
+] as const satisfies readonly { key: Tab; icon: string; label: string }[];
 
 interface Data {
   entries: Entry[];
@@ -62,6 +64,7 @@ export default function App() {
     setLoadFailed(false);
     Promise.all([loadEntries(), loadLetters(), loadSettings()]).then(
       ([entries, letters, s]) => {
+        applyLanguage(resolveLanguage(s.language)); // before the first screen shows
         setSettings(s);
         setData({ entries, letters });
       },
@@ -75,6 +78,8 @@ export default function App() {
   }, []);
 
   const changeSettings = (s: Settings) => {
+    // Every screen re-renders in the new language right away (they all use useTranslation).
+    applyLanguage(resolveLanguage(s.language));
     setSettings(s);
     saveSettings(s).catch(warnSaveFailed);
   };
@@ -95,10 +100,7 @@ export default function App() {
 }
 
 function warnSaveFailed() {
-  Alert.alert(
-    'Couldn’t save',
-    'Your last change may be lost when the app closes. Try again, and save a backup from Settings.',
-  );
+  Alert.alert(t('app.saveFailedTitle'), t('app.saveFailedBody'));
 }
 
 function Loading() {
@@ -112,19 +114,20 @@ function Loading() {
 
 function LoadFailed({ onRetry }: { onRetry: () => void }) {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: colors.bg }}>
       <Text style={{ fontSize: 20, fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
-        Couldn’t open your diary
+        {t('app.loadFailedTitle')}
       </Text>
       <Text style={{ marginTop: 8, fontSize: 15, lineHeight: 21, color: colors.muted, textAlign: 'center' }}>
-        Nothing has been changed or deleted. Try again, or restart the app.
+        {t('app.loadFailedBody')}
       </Text>
       <Pressable
         onPress={onRetry}
         style={{ marginTop: 24, backgroundColor: colors.accent, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 40 }}
       >
-        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Try again</Text>
+        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{t('common.tryAgain')}</Text>
       </Pressable>
     </View>
   );
@@ -141,6 +144,7 @@ function Main({
 }) {
   const { isDark } = useTheme();
   const styles = useStyles();
+  const { t, i18n } = useTranslation();
 
   // Everything stored, including deleted items (tombstones, see records.ts). Only change these here;
   // screens get the filtered `entries` / `letters` below.
@@ -291,10 +295,23 @@ function Main({
   });
   useEffect(() => syncAtLaunch(), []);
 
-  // Back from the background: if notifications were switched on or off in the phone's settings, resync.
+  // Back from the background: the phone's language may have changed (Android doesn't restart the app
+  // for that), and notifications may have been switched on or off in the phone's settings.
   const onForeground = useEffectEvent(async () => {
-    if ((await notificationPermission()) !== notifyPermission) syncNotifications(false);
+    const languageChanged = applyLanguage(resolveLanguage(settings.language));
+    // A language change re-syncs through the effect below.
+    if (!languageChanged && (await notificationPermission()) !== notifyPermission) syncNotifications(false);
   });
+
+  // Scheduled notifications keep the wording they were created with, so after a language change the
+  // ones for letters still to open are scheduled again in the new language.
+  const lastLanguage = useRef(i18n.language);
+  const onLanguageChange = useEffectEvent(() => {
+    if (lastLanguage.current === i18n.language) return;
+    lastLanguage.current = i18n.language;
+    syncNotifications(false);
+  });
+  useEffect(() => onLanguageChange(), [i18n.language]);
 
   // Tapping a letter's notification opens that letter.
   const openFromNotification = useEffectEvent((letterId: string) => {
@@ -342,7 +359,7 @@ function Main({
     try {
       await exportBackup(allEntries, allLetters); // backup.ts decides what goes in (no tombstones)
     } catch (e) {
-      Alert.alert('Couldn’t save the backup', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(t('backup.exportFailed'), e instanceof Error ? e.message : t('common.pleaseTryAgain'));
     }
   };
 
@@ -357,15 +374,15 @@ function Main({
       await syncNotifications(true);
       const summary =
         result.addedEntries + result.addedLetters === 0
-          ? 'Everything in that backup is already in your diary.'
-          : `Added ${result.addedEntries} ${result.addedEntries === 1 ? 'entry' : 'entries'} and ${result.addedLetters} ${result.addedLetters === 1 ? 'letter' : 'letters'}.`;
-      const skippedNote =
-        result.skipped > 0
-          ? ` ${result.skipped} ${result.skipped === 1 ? 'item was' : 'items were'} damaged and left out.`
-          : '';
-      Alert.alert('Backup restored', summary + skippedNote);
+          ? t('backup.nothingNew')
+          : t('backup.added', {
+              entries: t('backup.entries', { count: result.addedEntries }),
+              letters: t('backup.letters', { count: result.addedLetters }),
+            });
+      const skippedNote = result.skipped > 0 ? ` ${t('backup.skipped', { count: result.skipped })}` : '';
+      Alert.alert(t('backup.restored'), summary + skippedNote);
     } catch (e) {
-      Alert.alert('Couldn’t restore', e instanceof Error ? e.message : 'Please try again.');
+      Alert.alert(t('backup.importFailed'), e instanceof Error ? e.message : t('common.pleaseTryAgain'));
     }
   };
 
@@ -416,17 +433,17 @@ function Main({
         ) : (
           <>
             <View style={styles.header}>
-              <Text style={styles.appTitle}>{tab === 'letters' ? 'Letters' : 'My Diary'}</Text>
+              <Text style={styles.appTitle}>{tab === 'letters' ? t('letters.title') : t('app.title')}</Text>
               <View style={styles.headerRight}>
                 {tab !== 'letters' && (
                   <Text style={styles.count}>
-                    {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+                    {t('app.entryCount', { count: entries.length })}
                   </Text>
                 )}
                 <Pressable
                   onPress={() => setOverlay({ kind: 'settings' })}
                   hitSlop={12}
-                  accessibilityLabel="Settings"
+                  accessibilityLabel={t('app.settings')}
                 >
                   <Text style={styles.gear}>⚙︎</Text>
                 </Pressable>
@@ -474,7 +491,7 @@ function Main({
                 <Pressable
                   onPress={startNewEntry}
                   style={({ pressed }) => [styles.fab, pressed && { transform: [{ scale: 0.94 }] }]}
-                  accessibilityLabel="New entry"
+                  accessibilityLabel={t('app.newEntry')}
                 >
                   <Text style={styles.fabText}>＋</Text>
                 </Pressable>
@@ -482,20 +499,20 @@ function Main({
             </View>
 
             <View style={styles.tabBar}>
-              {TABS.map((t) => (
+              {TABS.map((item) => (
                 <Pressable
-                  key={t.key}
+                  key={item.key}
                   style={styles.tab}
                   onPress={() => {
-                    setTab(t.key);
+                    setTab(item.key);
                     setNow(Date.now()); // fresh countdowns on the Letters tab
                   }}
                 >
                   <View>
-                    <Text style={styles.tabIcon}>{t.icon}</Text>
-                    {t.key === 'letters' && readyLetters > 0 && <View style={styles.badge} />}
+                    <Text style={styles.tabIcon}>{item.icon}</Text>
+                    {item.key === 'letters' && readyLetters > 0 && <View style={styles.badge} />}
                   </View>
-                  <Text style={[styles.tabLabel, tab === t.key && styles.tabActive]}>{t.label}</Text>
+                  <Text style={[styles.tabLabel, tab === item.key && styles.tabActive]}>{t(item.label)}</Text>
                 </Pressable>
               ))}
             </View>

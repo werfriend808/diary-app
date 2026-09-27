@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { humanSpan, mediumDate, mediumDateTime, untilLabel } from '../dates';
 import { isUnlocked, unlockTime } from '../letters';
@@ -25,31 +26,30 @@ export default function LettersScreen({
   onDelete: (id: string) => void;
 }) {
   const styles = useStyles();
+  const { t } = useTranslation();
   const ready = letters.filter((l) => !l.openedAt && isUnlocked(l, now)).sort(byUnlock);
   const sealed = letters.filter((l) => !l.openedAt && !isUnlocked(l, now)).sort(byUnlock);
   const opened = letters.filter((l) => l.openedAt).sort((a, b) => (b.openedAt ?? 0) - (a.openedAt ?? 0));
 
   const confirmDelete = (l: Letter) =>
     Alert.alert(
-      'Delete this letter?',
-      l.openedAt ? 'This cannot be undone.' : 'It will be gone before you ever get to read it.',
+      t('letters.deleteTitle'),
+      l.openedAt ? t('letters.deleteOpened') : t('letters.deleteSealed'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => onDelete(l.id) },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.delete'), style: 'destructive', onPress: () => onDelete(l.id) },
       ],
     );
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.intro}>
-        Write to the person you’ll be. The letter stays sealed until the moment you choose.
-      </Text>
+      <Text style={styles.intro}>{t('letters.intro')}</Text>
       <Pressable onPress={onWrite} style={({ pressed }) => [styles.writeBtn, pressed && { opacity: 0.85 }]}>
-        <Text style={styles.writeText}>Write a letter to future you</Text>
+        <Text style={styles.writeText}>{t('letters.write')}</Text>
       </Pressable>
 
       {ready.length > 0 && (
-        <Section title="Ready to open">
+        <Section title={t('letters.ready')}>
           {ready.map((l) => (
             <Pressable
               key={l.id}
@@ -58,8 +58,8 @@ export default function LettersScreen({
             >
               <Text style={styles.envIcon}>✉️</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.envTitle}>From {mediumDate(l.writtenOn)}</Text>
-                <Text style={styles.envSub}>Written {humanSpan(l.writtenOn, today)} ago · tap to open</Text>
+                <Text style={styles.envTitle}>{t('letters.from', { date: mediumDate(l.writtenOn) })}</Text>
+                <Text style={styles.envSub}>{t('letters.readySub', { span: humanSpan(l.writtenOn, today) })}</Text>
               </View>
             </Pressable>
           ))}
@@ -67,9 +67,9 @@ export default function LettersScreen({
       )}
 
       {sealed.length > 0 && (
-        <Section title="Sealed">
+        <Section title={t('letters.sealed')}>
           {notificationsOff && (
-            <Text style={styles.notice}>Turn on notifications to be told when a letter opens.</Text>
+            <Text style={styles.notice}>{t('letters.notificationsOff')}</Text>
           )}
           {sealed.map((l) => {
             const at = unlockTime(l);
@@ -77,9 +77,9 @@ export default function LettersScreen({
               <Pressable key={l.id} onLongPress={() => confirmDelete(l)} style={styles.envelope}>
                 <Text style={styles.envIcon}>🔒</Text>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.envTitle}>Opens {mediumDateTime(at)}</Text>
+                  <Text style={styles.envTitle}>{t('letters.opens', { when: mediumDateTime(at) })}</Text>
                   <Text style={styles.envSub}>
-                    {untilLabel(now, at)} · written {mediumDate(l.writtenOn)}
+                    {t('letters.sealedSub', { until: untilLabel(now, at), date: mediumDate(l.writtenOn) })}
                   </Text>
                 </View>
               </Pressable>
@@ -89,7 +89,7 @@ export default function LettersScreen({
       )}
 
       {opened.length > 0 && (
-        <Section title="Opened">
+        <Section title={t('letters.opened')}>
           {opened.map((l) => (
             <Pressable
               key={l.id}
@@ -97,7 +97,7 @@ export default function LettersScreen({
               onLongPress={() => confirmDelete(l)}
               style={styles.openedCard}
             >
-              <Text style={styles.openedDate}>Written {mediumDate(l.writtenOn)}</Text>
+              <Text style={styles.openedDate}>{t('letters.writtenOn', { date: mediumDate(l.writtenOn) })}</Text>
               <Text style={styles.openedBody} numberOfLines={3}>
                 {l.body.trim()}
               </Text>
@@ -106,7 +106,7 @@ export default function LettersScreen({
         </Section>
       )}
 
-      {letters.length > 0 && <Text style={styles.tip}>Long-press a letter to delete it.</Text>}
+      {letters.length > 0 && <Text style={styles.tip}>{t('letters.tip')}</Text>}
     </ScrollView>
   );
 }

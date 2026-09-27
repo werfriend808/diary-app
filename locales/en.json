@@ -1,0 +1,6 @@
+{
+  "ios": {
+    "NSPhotoLibraryUsageDescription": "My Diary uses your photos so you can attach them to diary entries.",
+    "NSFaceIDUsageDescription": "My Diary uses Face ID so only you can open your diary."
+  }
+}
