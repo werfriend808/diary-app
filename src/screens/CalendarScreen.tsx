@@ -78,8 +78,14 @@ export default function CalendarScreen({
             const isSel = key === selected;
             const isToday = key === today;
             return (
-              <Pressable key={i} style={styles.cell} onPress={() => onSelect(key)}>
-                <View style={[styles.dayCircle, isSel && styles.daySelected]}>
+              <View key={i} style={styles.cell}>
+                {/* The circle itself is what's pressed, so Android's press/focus highlight is round, not a
+                    square around the whole cell. hitSlop keeps the tap area as big as the cell. */}
+                <Pressable
+                  style={[styles.dayCircle, isSel && styles.daySelected]}
+                  hitSlop={8}
+                  onPress={() => onSelect(key)}
+                >
                   <Text
                     style={[
                       styles.dayNum,
@@ -89,9 +95,9 @@ export default function CalendarScreen({
                   >
                     {Number(key.slice(8))}
                   </Text>
-                </View>
+                </Pressable>
                 {list && <View style={[styles.dot, { backgroundColor: mood?.color ?? colors.accent }]} />}
-              </Pressable>
+              </View>
             );
           })}
         </View>
