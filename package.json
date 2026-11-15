@@ -53,7 +53,8 @@
       "<rootDir>/test/setup.ts"
     ],
     "moduleNameMapper": {
-      "^expo-file-system$": "<rootDir>/test/mocks/expo-file-system.ts"
+      "^expo-file-system$": "<rootDir>/test/mocks/expo-file-system.ts",
+      "^@expo-google-fonts/.*$": "<rootDir>/test/mocks/google-fonts.js"
     },
     "testMatch": [
       "<rootDir>/**/__tests__/**/*.test.ts?(x)"
