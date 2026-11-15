@@ -1,5 +1,7 @@
 # My Diary
 
+[![CI](https://github.com/werfriend808/diary-app/actions/workflows/ci.yml/badge.svg)](https://github.com/werfriend808/diary-app/actions/workflows/ci.yml)
+
 **A private diary that gives your memories back to you.**
 
 Write about your day, as long or as short as you like. Over time the app starts showing you
