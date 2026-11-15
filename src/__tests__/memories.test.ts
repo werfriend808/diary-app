@@ -57,6 +57,16 @@ describe('On this day', () => {
     ]);
   });
 
+  it('brings back Feb 29 entries on Feb 28 in years without a Feb 29', () => {
+    expect(agesFor(['2024-02-29'], '2025-02-28')).toEqual([['2024-02-29', { years: 1 }]]);
+    expect(agesFor(['2024-02-29'], '2027-02-28')).toEqual([['2024-02-29', { years: 3 }]]);
+  });
+
+  it('does not show a Feb 29 entry twice in a leap year', () => {
+    expect(agesFor(['2024-02-29'], '2028-02-28')).toEqual([]);
+    expect(agesFor(['2024-02-29'], '2028-02-29')).toEqual([['2024-02-29', { years: 4 }]]);
+  });
+
   it('lists several entries written on the same day', () => {
     const a = on('2025-03-14');
     const b = on('2025-03-14');

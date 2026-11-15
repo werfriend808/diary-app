@@ -131,7 +131,13 @@ export async function importBackup(current: {
   } catch {
     throw new Error(t('backup.notABackup'));
   }
-  if (data?.app !== APP_ID || !Array.isArray(data.entries) || !Array.isArray(data.letters)) {
+  if (
+    data?.app !== APP_ID ||
+    !Number.isInteger(data.version) ||
+    data.version < 1 ||
+    !Array.isArray(data.entries) ||
+    !Array.isArray(data.letters)
+  ) {
     throw new Error(t('backup.notABackup'));
   }
   if (data.version > VERSION) {
