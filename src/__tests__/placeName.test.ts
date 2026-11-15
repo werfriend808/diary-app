@@ -1,10 +1,9 @@
 /*
- * Example reverse-geocoding results and the place name each should become. Run with:
- *   node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON src/placeName.examples.ts
- * (Node 22.18+ runs TypeScript directly.) The inputs are shaped like what iOS and Android return; real
- * results vary by OS version and exact spot, which is why the user can always edit the name.
+ * Example reverse-geocoding results and the place name each should become. The inputs are shaped like
+ * what iOS and Android return; real results vary by OS version and exact spot, which is why the user
+ * can always edit the name.
  */
-import { type GeocodedAddress, placeNameFrom } from './placeName.ts';
+import { type GeocodedAddress, MAX_PLACE_LENGTH, placeNameFrom } from '../placeName';
 
 const EXAMPLES: { label: string; input: GeocodedAddress | null; expected: string }[] = [
   {
@@ -55,12 +54,12 @@ const EXAMPLES: { label: string; input: GeocodedAddress | null; expected: string
   { label: 'No result at all', input: null, expected: '' },
 ];
 
-let failed = 0;
-for (const { label, input, expected } of EXAMPLES) {
-  const actual = placeNameFrom(input);
-  const ok = actual === expected;
-  if (!ok) failed++;
-  console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}: ${JSON.stringify(actual)}${ok ? '' : ` (expected ${JSON.stringify(expected)})`}`);
-}
-console.log(failed ? `\n${failed} failed` : `\nall ${EXAMPLES.length} passed`);
-if (failed) process.exitCode = 1;
+describe('placeNameFrom', () => {
+  it.each(EXAMPLES)('$label', ({ input, expected }) => {
+    expect(placeNameFrom(input)).toBe(expected);
+  });
+
+  it(`never returns more than ${MAX_PLACE_LENGTH} characters`, () => {
+    expect(placeNameFrom({ formattedAddress: 'x'.repeat(200) })).toHaveLength(MAX_PLACE_LENGTH);
+  });
+});

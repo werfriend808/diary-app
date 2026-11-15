@@ -1,7 +1,7 @@
 /*
  * Turns a reverse-geocoding result into a short neighbourhood name for an entry, like "서울특별시 성동구
  * 성수동" or "California San Francisco Mission". Kept free of React Native imports so it can be checked
- * with plain Node (src/placeName.examples.ts).
+ * without a phone (src/__tests__/placeName.test.ts).
  *
  * The result comes back in the phone's language, and iOS and Android fill the fields differently (iOS
  * often repeats the city in region and city; Android tends to put the 구 in subregion). So nothing
