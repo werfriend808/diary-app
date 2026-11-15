@@ -61,14 +61,23 @@
       "<rootDir>/**/__tests__/**/*.test.ts?(x)"
     ],
     "collectCoverageFrom": [
-      "src/**/*.{ts,tsx}",
-      "App.tsx",
-      "!src/**/*.d.ts"
+      "src/*.ts",
+      "src/i18n/index.ts",
+      "!src/*.d.ts",
+      "!src/types.ts"
     ],
     "coverageReporters": [
       "text",
       "text-summary",
       "lcov"
-    ]
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 90,
+        "branches": 85,
+        "functions": 85,
+        "lines": 95
+      }
+    }
   }
 }
