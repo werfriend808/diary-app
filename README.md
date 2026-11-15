@@ -126,7 +126,9 @@ Entries and letters are each one JSON file in the app's documents folder (`data/
 `data/letters.json`). A phone can kill an app at any moment, and writing a file in place can leave
 half a JSON document behind, which would lose the whole diary. So every save writes the full list to
 `entries.json.tmp` first and then **renames it over** `entries.json`. A rename within one folder is
-atomic on the file system: the real file is always either the old version or the new one.
+atomic on the file system: the real file is either the old version or the new one, never half of
+one. If the platform ever implements the move as delete-then-rename, the complete `.tmp` file is
+still there, and loading recovers from it.
 
 The second rule is **fail-safe loading**: only "nothing saved yet" becomes an empty list. If the
 file exists but can't be read or parsed, loading throws and the app shows a "couldn't open your
