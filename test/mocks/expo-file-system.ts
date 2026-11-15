@@ -53,9 +53,8 @@ function join(parts: Part[]): string {
     const s = typeof p === 'string' ? p : p.uri;
     segments.push(s.replace(/\/+$/, ''));
   }
-  let uri = segments.join('/');
-  if (!uri.startsWith('file://')) uri = `${ROOT}${uri.replace(/^\/+/, '')}`;
-  return uri.replace(/([^:])\/{2,}/g, '$1/');
+  const path = segments.join('/').replace(/^file:\/\//, '');
+  return `${ROOT}${path.replace(/\/{2,}/g, '/').replace(/^\/+/, '')}`;
 }
 
 const parentOf = (uri: string) => uri.slice(0, uri.lastIndexOf('/'));
