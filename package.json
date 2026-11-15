@@ -43,7 +43,8 @@
     "lint": "expo lint",
     "test": "jest",
     "test:coverage": "jest --coverage",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:timezones": "node test/run-in-timezones.js"
   },
   "private": true,
   "jest": {
