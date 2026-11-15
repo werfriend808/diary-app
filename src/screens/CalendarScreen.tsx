@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import EntryCard from '../components/EntryCard';
-import { longDate, monthYear, toKey, weekdayInitials } from '../dates';
+import { dayMood, entriesByDay, monthGrid } from '../calendar';
+import { longDate, monthYear, weekdayInitials } from '../dates';
 import { makeStyles, moodOf, useTheme } from '../theme';
 import { Entry } from '../types';
 
@@ -27,21 +28,10 @@ export default function CalendarScreen({
     return new Date(y, m - 1, 1);
   });
 
-  const byDay = useMemo(() => {
-    const map = new Map<string, Entry[]>();
-    for (const e of entries) map.set(e.date, [...(map.get(e.date) ?? []), e]);
-    return map;
-  }, [entries]);
+  const byDay = useMemo(() => entriesByDay(entries), [entries]);
 
-  // Build a 6x7 grid (null = blank cell before the 1st / after the last day).
-  const cells = useMemo(() => {
-    const first = month.getDay();
-    const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
-    const out: (string | null)[] = Array(first).fill(null);
-    for (let d = 1; d <= days; d++) out.push(toKey(new Date(month.getFullYear(), month.getMonth(), d)));
-    while (out.length % 7) out.push(null);
-    return out;
-  }, [month]);
+  // A 6x7-or-smaller grid (null = blank cell before the 1st / after the last day).
+  const cells = useMemo(() => monthGrid(month), [month]);
 
   const shiftMonth = (delta: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + delta, 1));
 
@@ -72,7 +62,7 @@ export default function CalendarScreen({
           {cells.map((key, i) => {
             if (!key) return <View key={i} style={styles.cell} />;
             const list = byDay.get(key);
-            const mood = moodOf(list?.find((e) => e.mood)?.mood);
+            const mood = moodOf(dayMood(list));
             const isSel = key === selected;
             const isToday = key === today;
             return (
