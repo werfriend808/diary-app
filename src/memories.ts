@@ -17,9 +17,23 @@ export function memoryLabel(ago: MemoryAge): string {
   return translate('memories.weekAgo');
 }
 
+const isLeapYear = (y: number) => new Date(y, 1, 29).getDate() === 29;
+
+/** Same month and day — or a Feb 29 entry on Feb 28 of a year that has no Feb 29. */
+function isAnniversary(entry: Date, today: Date) {
+  if (entry.getMonth() === today.getMonth() && entry.getDate() === today.getDate()) return true;
+  return (
+    entry.getMonth() === 1 &&
+    entry.getDate() === 29 &&
+    today.getMonth() === 1 &&
+    today.getDate() === 28 &&
+    !isLeapYear(today.getFullYear())
+  );
+}
+
 /**
  * Entries worth resurfacing today:
- *  - same date in earlier years      ("2 years ago")
+ *  - same date in earlier years      ("2 years ago"); Feb 29 entries come back on Feb 28 in other years
  *  - same day-of-month earlier months ("3 months ago", within the last year)
  *  - exactly one week ago             ("One week ago") — gives new users an early payoff
  * Older memories come first, since they're the most nostalgic.
@@ -34,7 +48,7 @@ export function memoriesFor(entries: Entry[], today: string): Memory[] {
     const d = fromKey(entry.date);
     const age = daysBetween(entry.date, today);
 
-    if (d.getMonth() === t.getMonth() && d.getDate() === t.getDate()) {
+    if (isAnniversary(d, t)) {
       out.push({ entry, age, ago: { years: t.getFullYear() - d.getFullYear() } });
     } else if (d.getDate() === t.getDate() && age < 365) {
       const months = (t.getFullYear() - d.getFullYear()) * 12 + t.getMonth() - d.getMonth();
