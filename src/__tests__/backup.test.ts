@@ -129,6 +129,16 @@ describe('importBackup: rejecting files that are not a backup', () => {
     await expect(importInto()).rejects.toThrow(t('backup.notABackup'));
   });
 
+  it.each([
+    ['no version', { version: undefined }],
+    ['a version that is not a number', { version: 'one' }],
+    ['a fractional version', { version: 1.5 }],
+    ['version 0', { version: 0 }],
+  ])('rejects a file with %s', async (_label, extra) => {
+    pickFile(backupOf([makeEntry()], [], extra));
+    await expect(importInto()).rejects.toThrow(t('backup.notABackup'));
+  });
+
   it('refuses a backup from a newer app version instead of half-reading it', async () => {
     pickFile(backupOf([makeEntry()], [], { version: 2 }));
     await expect(importInto()).rejects.toThrow(t('backup.tooNew'));
